@@ -7,7 +7,8 @@ from plotly.subplots import make_subplots
 import statsmodels.api as sm
 
 # ==========================================
-# 網頁基本設定
+# ==========================================
+# 網頁基本設定 & 視覺 CSS 優化
 # ==========================================
 st.set_page_config(
     page_title="台灣總體經濟數據展演 (1970-2025)",
@@ -15,9 +16,47 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# 注入財經 M 平方 / IMF 風格的 CSS
+st.markdown("""
+    <style>
+    /* 整體背景改為柔和淺灰，凸顯白色圖表與卡片 */
+    .stApp {
+        background-color: #f4f6f9;
+    }
+    /* 建立說明文字的卡片樣式 */
+    .macro-card {
+        background-color: #ffffff;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+        border: 1px solid #eef2f6;
+        height: 100%;
+    }
+    /* 事件焦點框樣式 */
+    .event-box {
+        background-color: #f8f9fa;
+        border-left: 5px solid #ff7f0e;
+        padding: 15px 20px;
+        border-radius: 4px;
+        margin-bottom: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .event-title {
+        color: #d62728;
+        font-weight: 700;
+        font-size: 1.1em;
+        margin-bottom: 5px;
+    }
+    .event-desc {
+        color: #4a5568;
+        font-size: 0.95em;
+        line-height: 1.5;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("📊 台灣歷年總體經濟數據轉變與國內外政經環境發展歷程 (1970-2025)")
 st.markdown("---")
-
 
 # ==========================================
 # 圖表 1 ~ 11 的生成函數庫
@@ -26,7 +65,7 @@ st.markdown("---")
 def get_fig_1():
     try:
         # 確保安裝 python-calamine 後使用 calamine 引擎加速讀取
-        df_gdp = pd.read_excel('gdp_exchange.xlsx', skiprows=2, engine='calamine')
+        df_gdp = pd.read_excel('gdp_exchange.xlsx', skiprows=2)
         year_col = df_gdp.columns[0]
 
         # 🚨 修正 1：強制指定正確的百分比欄位，避免抓到「百萬元」絕對數值
@@ -408,8 +447,13 @@ def get_fig_7():
             df_cpi = df_cpi.sort_values(by='年份').reset_index(drop=True)
 
     except Exception as e:
-        st.warning(f"找不到或無法讀取 `cpi.csv`，將使用歷史通膨重點數據呈現。")
+        st.warning(f"找不到或無法讀取 `cpi.csv` ({e})，將使用歷史通膨重點數據呈現。")
         df_cpi = pd.DataFrame({'年份': range(1971, 2025), 'YoY(%)': np.random.uniform(0, 3, 54)})
+
+        # 🚨 加入這兩行，定義欄位名稱，避免後續程式找不到變數
+        year_col = '年份'
+        index_col = 'YoY(%)'
+
         cpi_data = [(1973, 13.1), (1974, 47.5), (1979, 9.8), (1980, 19.0), (1989, 4.5), (2008, 3.5), (2022, 2.9)]
         for y, v in cpi_data:
             df_cpi.loc[df_cpi['年份'] == y, 'YoY(%)'] = v
@@ -679,30 +723,41 @@ with tab1:
             st.plotly_chart(fig2, use_container_width=True)
 
 # ------------------------------------------
+# ------------------------------------------
 # TAB 2：單項指標數據探索區
 # ------------------------------------------
 with tab2:
     st.subheader("🔍 單項關鍵指標獨立探索")
     st.markdown("在此標籤頁中，您可以透過下方下拉選單，調閱、觀測台灣 11 項關鍵總經指標的極致互動圖表。")
 
-    # 將選單移入 Tab 主畫面，不佔用側邊欄，排版更像專業智庫網頁
+    # 將選單移入 Tab 主畫面
     selected_indicator = st.selectbox('📊 請選取您想獨立觀測的數據指標：', options, index=0)
     st.markdown("---")
 
     if selected_indicator in fig_map:
         current_fig, events_dict = fig_map[selected_indicator]()
 
-        # 渲染圖表
+        # 將圖表包在卡片內，增加留白與邊框質感
+        st.markdown('<div class="macro-card">', unsafe_allow_html=True)
         st.plotly_chart(current_fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        # 渲染 Streamlit 原生折疊面板
+        st.markdown("<br>", unsafe_allow_html=True)  # 增加垂直間距
+
+        # 替換原本的 Expander，改用專業的重點提示框排版
         if events_dict:
-            st.markdown("#### 📌 歷史政經事件折疊面版")
+            st.markdown("#### 📌 歷史政經事件關鍵解析")
             cols = st.columns(2)
+
             for i, (year, data) in enumerate(events_dict.items()):
-                col = cols[i % 2]
-                with col.expander(f"📅 {year} 年 — {data['title']}", expanded=False):
-                    st.write(data['desc'])
+                with cols[i % 2]:
+                    # 使用 HTML 渲染自訂的事件卡片
+                    st.markdown(f"""
+                        <div class="event-box">
+                            <div class="event-title">📅 {year} 年 — {data['title']}</div>
+                            <div class="event-desc">{data['desc']}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
 
 # ==========================================
 # 頁尾
