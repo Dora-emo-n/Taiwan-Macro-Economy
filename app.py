@@ -586,3 +586,4 @@ st.markdown("---")
 st.markdown(
     "<p style='text-align: center; color: gray;'>資料來源：中華民國中央銀行、行政院主計總處、Streamlit 動態儀表板</p>",
     unsafe_allow_html=True)
+# 觸發伺服器重建
