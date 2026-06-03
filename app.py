@@ -206,7 +206,7 @@ def get_fig_5():
     years = list(range(1970, 2025))
     trade_balance = np.linspace(-10, 800, len(years)) + np.random.normal(0, 40, len(years))
     for y, v in [(1974, -13.2), (1987, 186), (2001, 156), (2008, 152), (2018, 492), (2021, 654), (2024, 900)]:
-    trade_balance[years.index(y)] = v
+        trade_balance[years.index(y)] = v
     df_trade = pd.DataFrame({'年份': years, '貿易差額': trade_balance})
     df_trade['10Y_MA'] = df_trade['貿易差額'].rolling(window=10, min_periods=1).mean()
     trade_events = {1974: {"title": "石油危機逆差", "desc": "進口成本大增。"},
@@ -281,9 +281,10 @@ def get_fig_7():
         df_cpi['年份'] = df_cpi[year_col]
     except Exception as e:
         df_cpi = pd.DataFrame({'年份': range(1971, 2025), 'YoY(%)': np.random.uniform(0, 3, 54)})
-        for y, v in [(1973, 13.1), (1974, 47.5), (1979, 9.8), (1980, 19.0), (1989, 4.5), (2008, 3.5), (2022, 2.9)]:
-        df_cpi.loc[df_cpi['年份'] == y, 'YoY(%)'] = v
-
+        for c, n, col in [('農業', '農業', '#2ca02c'), ('工業', '工業', '#1f77b4'), ('服務業', '服務業', '#ff7f0e')]:
+            fig.add_trace(
+                go.Scatter(x=df_ind['年份'], y=df_ind[c], name=n, mode='lines', stackgroup='one', line=dict(color=col)),
+                row=1, col=2)
     inflation_events = {1973: {"title": "危機前夕", "desc": "油價飆漲。"},
                         1974: {"title": "第一次石油危機", "desc": "創下 47.5% 歷史天價。"},
                         1979: {"title": "中美斷交恐慌", "desc": "預期心理再次失控。"},
@@ -586,4 +587,3 @@ st.markdown("---")
 st.markdown(
     "<p style='text-align: center; color: gray;'>資料來源：中華民國中央銀行、行政院主計總處、Streamlit 動態儀表板</p>",
     unsafe_allow_html=True)
-# 觸發伺服器重建
