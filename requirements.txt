@@ -4,4 +4,3 @@ numpy
 plotly
 statsmodels
 openpyxl
-python-calamine
