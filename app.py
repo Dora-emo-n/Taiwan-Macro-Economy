@@ -4,19 +4,18 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-import statsmodels.api as sm
+import streamlit.components.v1 as components
 
 # ==========================================
 # 一、 網頁基本設定 & 全局 UI/UX 優化
 # ==========================================
-# 滿版配置與預設折疊的漢堡選單 (無深淺色切換)
+# 移除深淺色切換，維持單一高質感淺色主題，預設折疊漢堡選單
 st.set_page_config(
     page_title="台灣總體經濟分析系統 (1970-2025)",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# 全局單一高質感淺色主題 CSS
 theme_css = """
 <style>
     .stApp { background-color: #f4f6f9; color: #2c3e50; }
@@ -24,6 +23,8 @@ theme_css = """
     .event-box { background-color: #f8f9fa; padding: 15px 20px; border-left: 5px solid #ff7f0e; color: #4a5568; border-radius: 4px; margin-bottom: 12px; }
     .stTabs [data-baseweb="tab-list"] { gap: 24px; }
     .stTabs [data-baseweb="tab"] { height: 50px; font-size: 16px; font-weight: 600; }
+    .stExpander { background-color: #ffffff !important; border-color: #eef2f6 !important; }
+    div[data-testid="stExpander"] details summary p { font-size: 1.1rem; font-weight: 600; color: #d62728; }
     #back-to-top {
         position: fixed; bottom: 40px; right: 40px; background-color: #d62728; color: white;
         width: 50px; height: 50px; border-radius: 50%; text-align: center; line-height: 50px;
@@ -45,7 +46,7 @@ st.markdown(theme_css, unsafe_allow_html=True)
 def load_all_data():
     years = np.arange(1970, 2026)
 
-    # 1. 重大歷史事件庫 (字典)
+    # 1. 重大歷史事件庫 (字典擴充)
     timeline_events = {
         1973: {"title": "第一次石油危機", "desc": "中東戰爭導致油價暴漲，引發輸入性通膨。"},
         1974: {"title": "推動十大建設", "desc": "通膨高達47.5%，政府啟動重工業與基礎建設轉型。"},
@@ -64,7 +65,7 @@ def load_all_data():
         2024: {"title": "AI 伺服器狂潮", "desc": "高階伺服器需求大增，台股突破兩萬點大關。"}
     }
 
-    # 2. 跨國比較數據 (IMF 風格)
+    # 2. 跨國比較數據 (IMF)
     np.random.seed(42)
     df_intl = pd.DataFrame({'Year': years})
     df_intl['Taiwan_GDP'] = np.interp(years, [1970, 1990, 2001, 2008, 2021],
@@ -78,7 +79,7 @@ def load_all_data():
     df_intl['China_GDP'] = np.interp(years, [1970, 1990, 2007, 2020], [4, 4.2, 14.2, 2.3]) + np.random.normal(0, 2,
                                                                                                               len(years))
 
-    # 3. 賽馬圖數據 (Gapminder)
+    # 3. 賽馬圖數據
     race_records = []
     for y in years:
         tw_val = np.interp(y, [1970, 1992, 2011, 2025], [390, 10000, 20000, 35000])
@@ -92,6 +93,9 @@ def load_all_data():
             race_records.append({'Year': y, 'Country': country, 'GDP_Per_Capita': val})
     df_race = pd.DataFrame(race_records)
 
+    # 🚀 賽馬圖關鍵修正：加入動態 Rank (排名) 以利 Plotly 即時動畫排序
+    df_race['Rank'] = df_race.groupby('Year')['GDP_Per_Capita'].rank(method='first', ascending=True)
+
     # 4. SWIFT 與量化回測
     swift_usd = np.interp(years, [2010, 2015, 2020, 2025], [85, 78, 65, 58])
     swift_cny = np.interp(years, [2010, 2015, 2020, 2025], [0.1, 1.5, 3.2, 7.5])
@@ -100,14 +104,8 @@ def load_all_data():
     sim_dates = pd.date_range(start='2015-01-01', end='2025-12-31', freq='B')
     daily_ret_port = np.random.normal(0.00045, 0.011, len(sim_dates))
     daily_ret_bench = np.random.normal(0.00035, 0.013, len(sim_dates))
-
-    crash_2020 = (sim_dates > '2020-02-15') & (sim_dates < '2020-03-25')
-    crash_2022 = (sim_dates > '2022-01-01') & (sim_dates < '2022-10-31')
-    daily_ret_port[crash_2020] -= 0.005
-    daily_ret_bench[crash_2020] -= 0.006
-    daily_ret_port[crash_2022] -= 0.001
-    daily_ret_bench[crash_2022] -= 0.0015
-
+    daily_ret_port[(sim_dates > '2020-02-15') & (sim_dates < '2020-03-25')] -= 0.005
+    daily_ret_bench[(sim_dates > '2020-02-15') & (sim_dates < '2020-03-25')] -= 0.006
     df_backtest = pd.DataFrame({'Date': sim_dates, 'Portfolio_NAV': np.cumprod(1 + daily_ret_port) * 100,
                                 'Benchmark_NAV': np.cumprod(1 + daily_ret_bench) * 100})
 
@@ -116,288 +114,14 @@ def load_all_data():
 
 events_dict, df_intl, df_race, df_swift, df_backtest = load_all_data()
 
-
 # ==========================================
-# 三、 純歷史時間軸組件生成函數
-# ==========================================
-def render_pure_timeline():
-    years = np.arange(1970, 2026)
-    event_years = list(events_dict.keys())
-    event_texts = [events_dict[y]['title'] for y in event_years]
-    event_hovers = [f"<b>{y}年：{events_dict[y]['title']}</b><br>{events_dict[y]['desc']}" for y in event_years]
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(x=years, y=[0] * len(years), mode='lines', line=dict(color='#cbd5e1', width=8), hoverinfo='skip'))
-    fig.add_trace(go.Scatter(
-        x=event_years, y=[0] * len(event_years), mode='markers+text',
-        marker=dict(size=22, color='#ffc107', line=dict(width=3, color='#e67e22')),
-        text=event_texts, textposition="top center", textfont=dict(size=11, color='#2c3e50'),
-        hovertemplate="%{hovertext}<extra></extra>", hovertext=event_hovers
-    ))
-
-    fig.update_layout(
-        height=300, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=True, dtick=5, tickfont=dict(size=14, color='gray')),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-1, 2]),
-        margin=dict(l=20, r=20, t=40, b=20), hoverlabel=dict(bgcolor="white", font_size=14)
-    )
-    return fig
-
-
-# ==========================================
-# 四、 原始 11 大圖表生成函數 (絕對安全版)
-# ==========================================
-def get_fig_1():
-    try:
-        df_gdp = pd.read_excel('gdp_exchange.xlsx', skiprows=2)
-        year_col, gdp_col = df_gdp.columns[0], '經濟成長率(%)'
-        if gdp_col not in df_gdp.columns: gdp_col = [col for col in df_gdp.columns if '成長率' in str(col)][0]
-    except Exception as e:
-        df_gdp = pd.DataFrame({'年份': range(1970, 2025), '經濟成長率(%)': np.random.uniform(2, 10, 55)})
-        year_col, gdp_col = '年份', '經濟成長率(%)'
-
-    df_gdp[year_col] = pd.to_numeric(df_gdp[year_col].astype(str).str.extract(r'(\d+)')[0], errors='coerce')
-    df_gdp = df_gdp.dropna(subset=[year_col])
-    df_gdp.loc[df_gdp[year_col] < 1000, year_col] += 1911
-    df_gdp = df_gdp[df_gdp[year_col] >= 1970].sort_values(by=year_col).reset_index(drop=True)
-    df_gdp[gdp_col] = pd.to_numeric(df_gdp[gdp_col], errors='coerce').fillna(4.2)
-
-    cycle, trend = sm.tsa.filters.hpfilter(df_gdp[gdp_col], lamb=100)
-    fig = go.Figure()
-    colors = ['#FFB870' if val < trend_val else '#87CEFA' for val, trend_val in zip(df_gdp[gdp_col], trend)]
-    fig.add_trace(go.Bar(x=df_gdp[year_col], y=df_gdp[gdp_col], name='GDP 成長率 (%)', marker_color=colors))
-    fig.add_trace(
-        go.Scatter(x=df_gdp[year_col], y=trend, mode='lines', name='長期趨勢', line=dict(color='#ff7f0e', width=4)))
-    fig.update_layout(title='台灣歷年經濟動能', hovermode="x unified", plot_bgcolor='rgba(0,0,0,0)')
-    return fig, {}
-
-
-def get_fig_2():
-    df_gdp = pd.DataFrame({'Year': list(range(1970, 2025)),
-                           'GDP_Per_Capita_USD': [390, 440, 520, 690, 920, 970, 1150, 1330, 1600, 1940, 2380, 2720,
-                                                  2690, 2900, 3220, 3310, 4030, 5340, 6220, 7620, 8200, 9050, 10760,
-                                                  11290, 12220, 13140, 13730, 14040, 12840, 13800, 14900, 13330, 13650,
-                                                  14060, 15310, 16450, 16930, 17750, 18070, 16930, 19190, 20860, 21290,
-                                                  21970, 22870, 22780, 23090, 25060, 25830, 25900, 28380, 33050, 32600,
-                                                  32300, 34400]})
-    fig = go.Figure()
-    colors = ['#8B0000' if val >= 30000 else '#CD5C5C' if val >= 20000 else '#4682B4' if val >= 10000 else '#87CEFA' for
-              val in df_gdp['GDP_Per_Capita_USD']]
-    fig.add_trace(go.Bar(x=df_gdp['Year'], y=df_gdp['GDP_Per_Capita_USD'], name='人均 GDP', marker_color=colors))
-    for val, text in [(10000, "突破1萬"), (20000, "突破2萬"), (30000, "突破3萬")]:
-        fig.add_hline(y=val, line_dash="dot", line_color="gray", annotation_text=text)
-    fig.update_layout(title='台灣歷年人均 GDP', hovermode="x unified", plot_bgcolor='rgba(0,0,0,0)')
-    return fig, {}
-
-
-def get_fig_3():
-    years = list(range(1970, 2026))
-    np.random.seed(42)
-    unemp_rates = [np.random.uniform(1.2, 2.0) if y < 1996 else np.random.uniform(4.5, 5.2) if y in [2001, 2002,
-                                                                                                     2003] else np.random.uniform(
-        4.1, 5.8) if y in [2008, 2009, 2010] else 3.85 if y == 2020 else np.random.uniform(3.3,
-                                                                                           3.7) if y >= 2021 else np.random.uniform(
-        3.7, 4.0) for y in years]
-    fig = go.Figure()
-    colors = ['red' if val >= 4.0 else 'blue' for val in unemp_rates]
-    fig.add_trace(go.Bar(x=years, y=unemp_rates, marker_color=colors, name='失業率'))
-    fig.add_hline(y=4.0, line_dash="dot", line_color="gray", annotation_text="警戒線 (4%)")
-    fig.update_layout(title='台灣歷年失業率', yaxis=dict(range=[0, 7]), plot_bgcolor='rgba(0,0,0,0)')
-    return fig, {}
-
-
-def get_fig_4():
-    years = list(range(1970, 2026))
-    np.random.seed(42)
-    cpi_yoy = [np.random.uniform(15, 48) if y == 1974 else np.random.uniform(9, 20) if y in [1973, 1979,
-                                                                                             1980] else np.random.uniform(
-        2, 5) if y < 1996 else np.random.uniform(-1, 1) if y == 2009 else np.random.uniform(0, 1.5) if y in [2001, 2002,
-                                                                                                             2003] else np.random.uniform(
-        1, 2.5) for y in years]
-    unemp_rates = [np.random.uniform(1.2, 1.8) if y in [1973, 1974, 1979, 1980] else np.random.uniform(1.2,
-                                                                                                       2.0) if y < 1996 else np.random.uniform(
-        4.5, 5.85) if y in [2001, 2002, 2003, 2009] else np.random.uniform(3.3, 3.9) for y in years]
-    df_phil = pd.DataFrame({'年份': years, 'CPI年增率(%)': cpi_yoy, '失業率(%)': unemp_rates})
-    df_phil['年代'] = (df_phil['年份'] // 10 * 10).astype(str) + 's'
-    color_map = {'1970s': '#EF553B', '1980s': '#636EFA', '1990s': '#00CC96', '2000s': '#AB63FA', '2010s': '#FFA15A',
-                 '2020s': '#19D3F3'}
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df_phil['失業率(%)'], y=df_phil['CPI年增率(%)'], mode='lines',
-                             line=dict(color='rgba(180, 180, 180, 0.3)', width=1.5), showlegend=False))
-    fig.add_trace(go.Scatter(x=df_phil['失業率(%)'], y=df_phil['CPI年增率(%)'], mode='markers',
-                             marker=dict(color=df_phil['年代'].map(color_map).tolist(), size=8), name='經濟年代'))
-    fig.update_layout(title='台灣菲利浦曲線', xaxis=dict(title='失業率 (%)'), yaxis=dict(title='CPI 年增率 (%)'),
-                      plot_bgcolor='rgba(0,0,0,0)')
-    return fig, {}
-
-
-def get_fig_5():
-    years = list(range(1970, 2025))
-    np.random.seed(42)
-    trade_balance = np.linspace(-10, 800, len(years)) + np.random.normal(0, 40, len(years))
-
-    # 確保安全換行
-    for y, v in [(1974, -13.2), (1987, 186), (2001, 156), (2008, 152), (2018, 492), (2021, 654), (2024, 900)]:
-        trade_balance[years.index(y)] = v
-
-    df_trade = pd.DataFrame({'年份': years, '貿易差額': trade_balance})
-    df_trade['10Y_MA'] = df_trade['貿易差額'].rolling(window=10, min_periods=1).mean()
-    fig = go.Figure()
-    colors = ['#ef5350' if val > 0 else '#66bb6a' for val in df_trade['貿易差額']]
-    fig.add_trace(go.Bar(x=df_trade['年份'], y=df_trade['貿易差額'], name='貿易差額', marker_color=colors))
-    fig.add_trace(go.Scatter(x=df_trade['年份'], y=df_trade['10Y_MA'], name='10年均線',
-                             line=dict(color='rgba(0,0,139,0.7)', width=3)))
-    fig.add_hline(y=0, line_width=2, line_color="gray")
-    fig.update_layout(title='台灣歷年貿易差額', hovermode="x unified", plot_bgcolor='rgba(0,0,0,0)')
-    return fig, {}
-
-
-def get_fig_6():
-    years = list(range(1970, 2026))
-    np.random.seed(42)
-    m1b_yoy = [
-        7.5 if y == 1974 else 30.5 if y == 1989 else -6.5 if y == 1990 else 8.2 if y == 1997 else -3.1 if y == 2001 else -2.5 if y == 2008 else 15.6 if y == 2009 else 16.5 if y == 2020 else 4.5 if y == 2022 else 6.0 + np.random.normal(
-            0, 1) for y in years]
-    m2_yoy = [
-        15.2 if y == 1974 else 25.3 if y == 1989 else 10.5 if y == 1990 else 8.5 if y == 1997 else 5.8 if y == 2001 else 2.6 if y == 2008 else 5.5 if y == 2009 else 6.5 if y == 2020 else 7.4 if y == 2022 else 6.0 + np.random.normal(
-            0, 1) for y in years]
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=years, y=m2_yoy, mode='lines+markers', name='M2 (廣義貨幣)', line=dict(color='#1f77b4')))
-    fig.add_trace(
-        go.Scatter(x=years, y=m1b_yoy, mode='lines+markers', name='M1B (狹義貨幣)', line=dict(color='#d62728')))
-    fig.add_hline(y=0, line_color="gray")
-    fig.update_layout(title='貨幣供給量 (M1B vs M2)', plot_bgcolor='rgba(0,0,0,0)', hovermode="x unified")
-    return fig, {}
-
-
-def get_fig_7():
-    try:
-        df_cpi = pd.read_csv('cpi.csv', skiprows=2)
-        year_col, index_col = df_cpi.columns[0], df_cpi.columns[1]
-        df_cpi[year_col] = pd.to_numeric(df_cpi[year_col].astype(str).str.extract(r'(\d+)')[0], errors='coerce')
-        df_cpi = df_cpi.dropna(subset=[year_col])
-        df_cpi.loc[df_cpi[year_col] < 1000, year_col] += 1911
-        df_cpi = df_cpi[df_cpi[year_col] >= 1970].sort_values(by=year_col).reset_index(drop=True)
-        df_cpi['YoY(%)'] = df_cpi[index_col].pct_change() * 100
-        df_cpi = df_cpi.dropna(subset=['YoY(%)'])
-        df_cpi['年份'] = df_cpi[year_col]
-    except Exception as e:
-        df_cpi = pd.DataFrame({'年份': range(1971, 2025), 'YoY(%)': np.random.uniform(0, 3, 54)})
-
-        # 確保安全換行
-        for y, v in [(1973, 13.1), (1974, 47.5), (1979, 9.8), (1980, 19.0), (1989, 4.5), (2008, 3.5), (2022, 2.9)]:
-            df_cpi.loc[df_cpi['年份'] == y, 'YoY(%)'] = v
-
-    fig = go.Figure()
-    colors = ['red' if val > 2 else 'blue' for val in df_cpi['YoY(%)']]
-    fig.add_trace(go.Bar(x=df_cpi['年份'], y=df_cpi['YoY(%)'], name='通膨率(YoY)', marker_color=colors))
-    fig.add_hline(y=2.0, line_dash="dot", line_color="gray", annotation_text="警戒線 (2%)")
-    fig.update_layout(title='台灣歷年通膨率', plot_bgcolor='rgba(0,0,0,0)', hovermode="x unified")
-    return fig, {}
-
-
-def get_fig_8():
-    df_rate = pd.DataFrame(
-        {'年份': [1971, 1973, 1974, 1979, 1981, 1985, 1989, 1997, 2000, 2001, 2003, 2008.5, 2008.9, 2020, 2022, 2024],
-         '重貼現率(%)': [9.5, 10.75, 14.0, 10.75, 13.0, 5.25, 7.75, 5.25, 4.625, 2.125, 1.375, 3.625, 1.25, 1.125, 1.75,
-                         2.0]})
-    df_rate = pd.merge(pd.DataFrame({'年份': range(1971, 2025)}), df_rate, on='年份', how='outer').sort_values(
-        '年份').ffill()
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df_rate['年份'], y=df_rate['重貼現率(%)'], mode='lines',
-                             line=dict(color='rgba(44,160,44,1)', width=3, shape='hv'), fill='tozeroy',
-                             fillcolor='rgba(44,160,44,0.1)'))
-    fig.update_layout(title='歷年重貼現率轉折', plot_bgcolor='rgba(0,0,0,0)')
-    return fig, {}
-
-
-def get_fig_9():
-    years = list(range(1970, 2026))
-    reserves = [4, 5, 7, 10, 9, 11, 15, 19, 42, 23, 22, 32, 47, 82, 116, 225, 463, 767, 738, 732, 724, 824, 823, 835,
-                924, 903, 880, 835, 903, 1062, 1067, 1222, 1616, 2066, 2417, 2533, 2661, 2703, 2917, 3481, 3820, 3855,
-                4031, 4168, 4189, 4260, 4342, 4515, 4617, 4781, 5299, 5484, 5549, 5705, 5690, 5710]
-    rates = [40, 40, 40, 38, 38, 38, 38, 38, 36, 36, 36, 37.84, 39.12, 40.06, 39.47, 39.85, 35.50, 28.55, 28.11, 26.16,
-             27.11, 25.75, 25.40, 26.63, 26.24, 27.27, 27.46, 32.64, 32.22, 31.40, 33.08, 35.00, 34.75, 33.98, 31.92,
-             32.85, 32.59, 32.44, 32.86, 32.03, 29.13, 30.29, 29.09, 29.95, 31.72, 32.83, 32.28, 29.85, 30.73, 30.11,
-             28.51, 27.69, 30.71, 31.10, 32.20, 32.50]
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(go.Scatter(x=years, y=reserves, name='外匯存底(億)', fill='tozeroy',
-                             line=dict(color='rgba(52,152,219,0.8)', width=2)), secondary_y=False)
-    fig.add_trace(go.Scatter(x=years, y=rates, name='匯率', line=dict(color='darkorange', width=3)), secondary_y=True)
-    fig.update_layout(title='外匯存底與匯率', plot_bgcolor='rgba(0,0,0,0)')
-    return fig, {}
-
-
-def get_fig_10():
-    years = np.arange(1970, 2025)
-    agri = np.linspace(15, 1.5, len(years))
-    ind = np.concatenate([np.linspace(35, 46, 15), np.linspace(46, 32, 25), np.linspace(32, 38, 15)])
-    df_ind = pd.DataFrame({'年份': years, '農業': agri, '工業': ind, '服務業': 100 - agri - ind})
-    fig = make_subplots(rows=1, cols=2, column_widths=[0.35, 0.65], specs=[[{"type": "domain"}, {"type": "xy"}]])
-    fig.add_trace(
-        go.Pie(labels=['農業', '工業', '服務業'], values=[agri[-1], ind[-1], 100 - agri[-1] - ind[-1]], hole=0.45,
-               marker=dict(colors=['#2ca02c', '#1f77b4', '#ff7f0e'])), row=1, col=1)
-
-    # 確保安全換行
-    for c, n, col in [('農業', '農業', '#2ca02c'), ('工業', '工業', '#1f77b4'), ('服務業', '服務業', '#ff7f0e')]:
-        fig.add_trace(
-            go.Scatter(x=df_ind['年份'], y=df_ind[c], name=n, mode='lines', stackgroup='one', line=dict(color=col)),
-            row=1, col=2)
-
-    fig.update_layout(title='產業經濟結構轉型', plot_bgcolor='rgba(0,0,0,0)')
-    return fig, {}
-
-
-def get_fig_11():
-    years_full = np.arange(1970, 2026)
-    records = []
-    anc = [1970, 1985, 2000, 2010, 2025]
-
-    # 確保安全換行
-    d1 = [years_full, np.interp(years_full, anc, [300000, 480000, 200000, 120000, 60000]),
-          np.interp(years_full, anc, [1000, 5000, 3500, 2800, 2000]),
-          np.interp(years_full, anc, [0.5, 0.8, 1.5, 2.0, 2.5])]
-    for i in range(len(years_full)):
-        records.append({'年份': d1[0][i], '產業': '紡織與成衣', '類別': '傳統產業', '就業人數': int(d1[1][i]),
-                        '出口產值': max(d1[2][i], 10), '研發投入': round(d1[3][i], 2)})
-
-    d2 = [years_full, np.interp(years_full, anc, [20000, 80000, 250000, 400000, 650000]),
-          np.interp(years_full, anc, [50, 1500, 35000, 100000, 280000]),
-          np.interp(years_full, anc, [1.0, 3.0, 6.0, 10.0, 16.0])]
-    for i in range(len(years_full)):
-        records.append({'年份': d2[0][i], '產業': '電子零組件', '類別': '科技資訊', '就業人數': int(d2[1][i]),
-                        '出口產值': max(d2[2][i], 10), '研發投入': round(d2[3][i], 2)})
-
-    d3 = [years_full, np.interp(years_full, anc, [5000, 40000, 200000, 300000, 350000]),
-          np.interp(years_full, anc, [20, 800, 25000, 60000, 95000]),
-          np.interp(years_full, anc, [0.5, 2.0, 4.0, 5.5, 7.0])]
-    for i in range(len(years_full)):
-        records.append({'年份': d3[0][i], '產業': '電腦與光學', '類別': '科技資訊', '就業人數': int(d3[1][i]),
-                        '出口產值': max(d3[2][i], 10), '研發投入': round(d3[3][i], 2)})
-
-    df_m = pd.DataFrame(records)
-    fig = px.scatter(df_m, x="就業人數", y="出口產值", animation_frame="年份", animation_group="產業", size="研發投入",
-                     color="類別", hover_name="產業", log_y=True, size_max=100, range_x=[-30000, 750000],
-                     range_y=[8, 600000], color_discrete_map={'傳統產業': '#EF553B', '科技資訊': '#636EFA'})
-    fig.update_layout(title='製造業板塊大遷徙', plot_bgcolor='rgba(0,0,0,0)')
-    return fig, {}
-
-
-fig_map = {
-    '1. 實質 GDP 成長率': get_fig_1, '2. 歷年人均 GDP': get_fig_2, '3. 失業率與政經事件': get_fig_3,
-    '4. 菲利浦曲線相圖': get_fig_4, '5. 歷年貿易差額': get_fig_5, '6. 貨幣供給量 M1B/M2': get_fig_6,
-    '7. 通膨率與石油危機': get_fig_7, '8. 重貼現率階梯圖': get_fig_8, '9. 外匯存底與匯率': get_fig_9,
-    '10. 產業結構儀表板': get_fig_10, '11. 製造業板塊遷徙': get_fig_11
-}
-
-# ==========================================
-# 五、 側邊欄導覽 (漢堡選單)
+# 三、 側邊欄導覽 (全新排序)
 # ==========================================
 st.sidebar.markdown("---")
 page_options = [
     "台灣1970~2025經濟歷史大事紀",
     "單項指標數據圖表探索",
+    "全球視角下的台灣",
     "大時代歷史縱橫",
     "國際政經與資金流動",
     "量化策略回測實驗室"
@@ -407,90 +131,170 @@ st.title(f"📊 {page_selection}")
 st.markdown("---")
 
 # ==========================================
-# 六、 各模組頁面實作
+# 四、 各模組頁面實作
 # ==========================================
 
 # ----------------------------------------------------
 # 模組一：台灣1970~2025經濟歷史大事紀
 # ----------------------------------------------------
 if page_selection == "台灣1970~2025經濟歷史大事紀":
-    st.markdown("##### 📖 一部純粹的歷史百科全書")
-    st.write("已移除所有繁雜的數據曲線。請將游標移至圖表中的黃色節點，即可顯示詳細的歷史背景與經濟影響。")
+    st.markdown("##### 📖 請將游標移至圖表中的黃色節點，即可顯示詳細的歷史背景與經濟影響。")
+
+    # 視覺化時間軸 (解決文字重疊)
+    years = np.arange(1970, 2026)
+    event_years = list(events_dict.keys())
+    event_texts = [events_dict[y]['title'] for y in event_years]
+    event_hovers = [f"<b>{y}年：{events_dict[y]['title']}</b><br>{events_dict[y]['desc']}" for y in event_years]
+
+    # 🚀 修正：上下交錯 (Alternating) 顯示 Text Labels 解決重疊問題
+    text_positions = ['top center' if i % 2 == 0 else 'bottom center' for i in range(len(event_years))]
+
+    fig_timeline = go.Figure()
+    fig_timeline.add_trace(
+        go.Scatter(x=years, y=[0] * len(years), mode='lines', line=dict(color='#cbd5e1', width=8), hoverinfo='skip'))
+    fig_timeline.add_trace(go.Scatter(
+        x=event_years, y=[0] * len(event_years), mode='markers+text',
+        marker=dict(size=20, color='#ffc107', line=dict(width=3, color='#e67e22')),
+        text=event_texts, textposition=text_positions, textfont=dict(size=12, color='#2c3e50'),
+        hovertemplate="%{hovertext}<extra></extra>", hovertext=event_hovers
+    ))
+    fig_timeline.update_layout(
+        height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=True, dtick=5, tickfont=dict(size=14)),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-1.5, 1.5]),
+        margin=dict(l=20, r=20, t=40, b=20), hoverlabel=dict(bgcolor="white", font_size=14)
+    )
 
     st.markdown('<div class="macro-card">', unsafe_allow_html=True)
-    timeline_fig = render_pure_timeline()
-    st.plotly_chart(timeline_fig, use_container_width=True)
+    st.plotly_chart(fig_timeline, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
+    # 🚀 加回下拉選單與歷史百科全書卡片
+    st.markdown("#### 📜 歷史百科全書查閱")
+    selected_event_year = st.selectbox("快速跳轉至特定事件：", event_years,
+                                       format_func=lambda x: f"{x} 年 - {events_dict[x]['title']}")
+
+    for year, info in events_dict.items():
+        # 若為使用者選取的年份，預設將其展開
+        is_expanded = (year == selected_event_year)
+        with st.expander(f"📅 {year} 年 — {info['title']}", expanded=is_expanded):
+            st.markdown("**詳細歷史背景與經濟影響：**")
+            st.write(info['desc'])
+
 # ----------------------------------------------------
-# 模組二：單項指標數據圖表探索 (導入 IMF 對照邏輯)
+# 模組二：單項指標數據圖表探索 (還原 HTML 外殼)
 # ----------------------------------------------------
 elif page_selection == "單項指標數據圖表探索":
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        options_list = ["全球視角：實質 GDP 成長率", "全球視角：歷年人均 GDP"] + list(fig_map.keys())
-        selected_indicator = st.selectbox('📊 選擇觀測指標：', options_list)
-    with col2:
-        compare_countries = st.multiselect('🌍 選擇疊加對照國家 (IMF Datamapper 模式)：',
-                                           ['美國', '日本', '韓國', '中國'], default=[])
+    st.markdown("本區為**高互動性原創 HTML 圖表展示區**。請由下方選單切換觀測指標：")
+
+    # 建立一個字典，把下拉選單的選項，精準對應到你的 HTML 檔名
+    html_file_map = {
+        '1. 實質GDP成長率_互動版': '台灣實質GDP成長率_互動版.html',
+        '2. 歷年人均GDP_互動版': '台灣歷年人均GDP_互動版.html',
+        '3. 歷年失業率_互動版': '台灣歷年失業率_互動版.html',
+        '4. 歷年菲利浦曲線_動態版': '台灣歷年菲利浦曲線_動態版.html',
+        '5. 歷年貿易差額_互動版': '台灣歷年貿易差額_互動版.html',
+        '6. 歷年貨幣供給量_互動版': '台灣歷年貨幣供給量_互動版.html',
+        '7. 歷年通膨率_互動版': '台灣歷年通膨率_互動版.html',
+        '8. 歷年重貼現率_互動版': '台灣歷年重貼現率_互動版.html',
+        '9. 歷年外匯與匯率_互動版': '台灣歷年外匯與匯率_互動版.html',
+        '10. 歷年產業結構_動態儀表板': '台灣歷年產業結構_動態儀表板.html',
+        '11. 製造業板塊大遷徙_動態泡泡圖': '台灣製造業板塊大遷徙_動態泡泡圖.html'
+    }
+
+    selected_indicator = st.selectbox("📊 選擇觀測圖表：", list(html_file_map.keys()))
 
     st.markdown('<div class="macro-card">', unsafe_allow_html=True)
 
-    fig_single = go.Figure()
+    # 取得實際的檔案名稱
+    target_filename = html_file_map[selected_indicator]
 
-    if "全球視角" in selected_indicator:
-        if "實質 GDP 成長率" in selected_indicator:
-            fig_single.add_trace(
-                go.Scatter(x=df_intl['Year'], y=df_intl['Taiwan_GDP'], mode='lines+markers', name='台灣',
-                           line=dict(color='#d62728', width=3)))
-            col_map = {'美國': 'US_GDP', '日本': 'Japan_GDP', '韓國': 'Korea_GDP', '中國': 'China_GDP'}
-            for c in compare_countries:
-                fig_single.add_trace(go.Scatter(x=df_intl['Year'], y=df_intl[col_map[c]], mode='lines', name=c,
-                                                line=dict(dash='dot', width=2)))
+    # 嘗試讀取該 HTML 檔案並嵌入網頁
+    try:
+        with open(target_filename, 'r', encoding='utf-8') as f:
+            html_content = f.read()
 
-        elif "歷年人均 GDP" in selected_indicator:
-            tw_pc = df_race[df_race['Country'] == '台灣']
-            fig_single.add_trace(
-                go.Scatter(x=tw_pc['Year'], y=tw_pc['GDP_Per_Capita'], mode='lines+markers', name='台灣',
-                           line=dict(color='#d62728', width=3)))
-            for c in compare_countries:
-                if c in ['美國', '韓國', '中國']:
-                    c_pc = df_race[df_race['Country'] == c]
-                    fig_single.add_trace(go.Scatter(x=c_pc['Year'], y=c_pc['GDP_Per_Capita'], mode='lines', name=c,
-                                                    line=dict(dash='dot', width=2)))
+        # 使用 Streamlit 原生功能嵌入 HTML，高度設定為 750px 確保完整顯示
+        st.components.v1.html(html_content, height=750, scrolling=True)
 
-        # 共同處理：修復星星標記與 Hover Tooltip
-        event_years = list(events_dict.keys())
-        event_hovers = [f"<b>⭐ {y}：{events_dict[y]['title']}</b><br>{events_dict[y]['desc']}" for y in event_years]
-
-        fig_single.add_trace(go.Scatter(
-            x=event_years, y=[0] * len(event_years), mode='markers', name='歷史事件',
-            marker=dict(symbol='star', size=14, color='gold', line=dict(width=1, color='red')),
-            hovertemplate="%{hovertext}<extra></extra>", hovertext=event_hovers
-        ))
-        fig_single.update_layout(title=f"{selected_indicator}", hovermode="x unified", height=500,
-                                 plot_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_single, use_container_width=True)
-
-    else:
-        # 呼叫原始 11 大圖表
-        current_fig, _ = fig_map[selected_indicator]()
-        st.plotly_chart(current_fig, use_container_width=True)
+    except FileNotFoundError:
+        # 萬一檔案還沒上傳或檔名有錯，顯示紅色錯誤提示防呆
+        st.error(f"❌ 找不到檔案：`{target_filename}`。請確認該檔案是否已經成功上傳至 GitHub，並且檔名完全一致。")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 雙畫面連動
-    st.markdown("##### ⏳ 歷史對照時間軸")
-    timeline_fig = render_pure_timeline()
-    st.plotly_chart(timeline_fig, use_container_width=True)
+# ----------------------------------------------------
+# 模組三：全球視角下的台灣 (新增獨立頁面)
+# ----------------------------------------------------
+elif page_selection == "全球視角下的台灣":
+    st.markdown("#### 🌍 跨國總經數據對照 (IMF Datamapper 模式)")
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        selected_intl_indicator = st.selectbox('📊 選擇觀測指標：', ["實質 GDP 成長率", "歷年人均 GDP"])
+    with col2:
+        compare_countries = st.multiselect('🌍 選擇疊加比較國家：', ['美國', '日本', '韓國', '中國'],
+                                           default=['韓國', '美國'])
+
+    fig_intl = go.Figure()
+
+    if "實質 GDP 成長率" in selected_intl_indicator:
+        fig_intl.add_trace(go.Scatter(x=df_intl['Year'], y=df_intl['Taiwan_GDP'], mode='lines+markers', name='台灣',
+                                      line=dict(color='#d62728', width=3)))
+        col_map = {'美國': 'US_GDP', '日本': 'Japan_GDP', '韓國': 'Korea_GDP', '中國': 'China_GDP'}
+        for c in compare_countries:
+            fig_intl.add_trace(go.Scatter(x=df_intl['Year'], y=df_intl[col_map[c]], mode='lines', name=c,
+                                          line=dict(dash='dot', width=2)))
+    elif "歷年人均 GDP" in selected_intl_indicator:
+        tw_pc = df_race[df_race['Country'] == '台灣']
+        fig_intl.add_trace(go.Scatter(x=tw_pc['Year'], y=tw_pc['GDP_Per_Capita'], mode='lines+markers', name='台灣',
+                                      line=dict(color='#d62728', width=3)))
+        for c in compare_countries:
+            if c in ['美國', '韓國', '中國']:
+                c_pc = df_race[df_race['Country'] == c]
+                fig_intl.add_trace(go.Scatter(x=c_pc['Year'], y=c_pc['GDP_Per_Capita'], mode='lines', name=c,
+                                              line=dict(dash='dot', width=2)))
+
+    # 互動星星標記
+    event_years = list(events_dict.keys())
+    event_hovers = [f"<b>⭐ {y}：{events_dict[y]['title']}</b><br>{events_dict[y]['desc']}" for y in event_years]
+    fig_intl.add_trace(go.Scatter(
+        x=event_years, y=[0] * len(event_years), mode='markers', name='台灣歷史事件',
+        marker=dict(symbol='star', size=14, color='gold', line=dict(width=1, color='red')),
+        hovertemplate="%{hovertext}<extra></extra>", hovertext=event_hovers
+    ))
+    fig_intl.update_layout(title=f"全球視角：{selected_intl_indicator}", hovermode="x unified", height=450,
+                           plot_bgcolor='rgba(0,0,0,0)')
+
+    st.markdown('<div class="macro-card">', unsafe_allow_html=True)
+    st.plotly_chart(fig_intl, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 🚀 動態賽馬圖 (徹底修復排序鎖死問題)
+    st.markdown("#### 🏁 亞洲四小龍與大國角力：歷年人均 GDP 賽馬圖")
+    st.write("點擊播放鍵，觀看自 1970 年至 2025 年各國經濟實力的動態演變。")
+
+    df_race_sorted = df_race.sort_values(by=['Year', 'GDP_Per_Capita'], ascending=[True, True])
+    # 利用我們預先計算好的 Rank 作為 Y 軸，國家名稱作為 text，騙過 Plotly 強制刷新 Y 軸
+    fig_race = px.bar(
+        df_race_sorted, x="GDP_Per_Capita", y="Rank", color="Country", text="Country",
+        animation_frame="Year", animation_group="Country", orientation='h',
+        range_x=[0, 90000], range_y=[0.5, 6.5],
+        color_discrete_map={"台灣": "#d62728", "美國": "#1f77b4", "新加坡": "#2ca02c", "韓國": "#ff7f0e",
+                            "香港": "#9467bd", "中國": "#8c564b"}
+    )
+    fig_race.update_layout(height=450, plot_bgcolor='rgba(0,0,0,0)', yaxis=dict(showticklabels=False, title=""))
+    fig_race.update_traces(textfont_size=14, textposition="outside", cliponaxis=False)
+
+    st.markdown('<div class="macro-card">', unsafe_allow_html=True)
+    st.plotly_chart(fig_race, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# 模組三：大時代歷史縱橫 (事件聚焦與縮放邏輯)
+# 模組四：大時代歷史縱橫 (事件聚焦與縮放邏輯)
 # ----------------------------------------------------
 elif page_selection == "大時代歷史縱橫":
-    st.markdown("本區選擇特定歷史事件後，X 軸將**自動縮放聚焦**於前後區間，並僅顯示具強烈因果關聯的變數，協助深度推演。")
-
-    event_focus = st.selectbox("🎯 請選擇欲聚焦的重大歷史戰役：", [
+    st.markdown("選擇特定歷史戰役，X 軸將自動縮放聚焦於事件前後 5 年，並僅顯示具強烈因果關聯的變數，協助您進行深度推演。")
+    event_focus = st.selectbox("🎯 選擇聚焦戰役：", [
         "1974 石油危機：通膨與經濟的拉扯",
         "2000 網路泡沫：失業率與股市崩盤",
         "2020 疫情大放水：資金狂潮與股市"
@@ -508,7 +312,7 @@ elif page_selection == "大時代歷史縱橫":
                                       line=dict(color='#e74c3c', width=4)), secondary_y=True)
         fig_zoom.update_yaxes(title_text="GDP 成長率 (%)", secondary_y=False)
         fig_zoom.update_yaxes(title_text="原油價格", secondary_y=True)
-        st.info("**因果推演**：1974 年原油價格（紅線）暴漲翻倍，直接導致當年度台灣 GDP 成長率（藍柱）面臨毀滅性的重挫衰退。")
+        st.info("💡 **因果推演**：1974 年原油價格（紅線）暴漲翻倍，直接導致當年度台灣 GDP 成長率（藍柱）面臨毀滅性的重挫衰退。")
 
     elif "2000" in event_focus:
         x_range = [1996, 2005]
@@ -521,7 +325,7 @@ elif page_selection == "大時代歷史縱橫":
             secondary_y=True)
         fig_zoom.update_yaxes(title_text="失業率 (%)", secondary_y=False)
         st.info(
-            "**因果推演**：2000 年網路泡沫破裂使股市（綠線）從萬點崩跌至三千點，隔年失業率（黃柱）受其拖累首度強勢衝破 4% 警戒線。")
+            "💡 **因果推演**：2000 年網路泡沫破裂使股市（綠線）從萬點崩跌至三千點，隔年失業率（黃柱）受其拖累首度強勢衝破 4% 警戒線。")
 
     elif "2020" in event_focus:
         x_range = [2017, 2025]
@@ -533,37 +337,21 @@ elif page_selection == "大時代歷史縱橫":
             go.Scatter(x=np.arange(2017, 2026), y=y_taiex2, name='台灣加權指數', line=dict(color='#d35400', width=4)),
             secondary_y=True)
         st.info(
-            "**因果推演**：疫情後聯準會無限 QE 帶動 M1B 資金狂潮（紫柱），充沛的流動性直接推升台股（橘線）邁向兩萬點新高。")
+            "💡 **因果推演**：疫情後聯準會無限 QE 帶動 M1B 資金狂潮（紫柱），充沛的流動性直接推升台股（橘線）邁向兩萬點新高。")
 
-    fig_zoom.update_layout(title="動態視角縮放：因果關聯變數矩陣", hovermode="x unified", height=500,
+    fig_zoom.update_layout(title="動態視角縮放：因果關聯矩陣", hovermode="x unified", height=500,
                            plot_bgcolor='rgba(0,0,0,0)', xaxis=dict(range=x_range, dtick=1))
-
     st.markdown('<div class="macro-card">', unsafe_allow_html=True)
     st.plotly_chart(fig_zoom, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# 模組四：國際政經與資金流動 (Gapminder 賽馬圖)
+# 模組五：國際政經與資金流動
 # ----------------------------------------------------
 elif page_selection == "國際政經與資金流動":
-    st.subheader("🏁 亞洲四小龍與大國角力：歷年人均 GDP 賽馬圖")
-    st.write("點擊播放鍵，觀看自 1970 年至 2025 年各國經濟實力的動態演變（Gapminder 風格）。")
-
-    df_race_sorted = df_race.sort_values(by=['Year', 'GDP_Per_Capita'], ascending=[True, True])
-    fig_race = px.bar(
-        df_race_sorted, x="GDP_Per_Capita", y="Country", color="Country",
-        animation_frame="Year", animation_group="Country", orientation='h',
-        range_x=[0, 90000], title="各國人均 GDP (USD) 歷史動態軌跡",
-        color_discrete_map={"台灣": "#d62728", "美國": "#1f77b4", "新加坡": "#2ca02c", "韓國": "#ff7f0e",
-                            "香港": "#9467bd", "中國": "#8c564b"}
-    )
-    fig_race.update_layout(height=500, plot_bgcolor='rgba(0,0,0,0)')
-
-    st.markdown('<div class="macro-card">', unsafe_allow_html=True)
-    st.plotly_chart(fig_race, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
     st.subheader("💱 全球貨幣體系變遷：石油美元 vs 石油人民幣")
+    st.markdown("台灣匯率與外貿極度依賴全球貨幣體系。本圖表呈現全球供應鏈重組下非美貨幣體系的演變趨勢。")
+
     df_swift_filtered = df_swift[(df_swift['Year'] >= 2010) & (df_swift['Year'] <= 2025)]
     fig_swift = make_subplots(specs=[[{"secondary_y": True}]])
     fig_swift.add_trace(go.Bar(x=df_swift_filtered['Year'], y=df_swift_filtered['SWIFT_USD'], name='美元 SWIFT 佔比',
@@ -572,7 +360,9 @@ elif page_selection == "國際政經與資金流動":
         go.Scatter(x=df_swift_filtered['Year'], y=df_swift_filtered['SWIFT_CNY'], name='人民幣 SWIFT 佔比',
                    line=dict(color='#e74c3c', width=4)), secondary_y=True)
 
-    fig_swift.update_layout(hovermode="x unified", plot_bgcolor='rgba(0,0,0,0)')
+    fig_swift.update_layout(title="SWIFT 國際支付佔比演變 (2010-2025)", hovermode="x unified",
+                            plot_bgcolor='rgba(0,0,0,0)')
+    fig_swift.update_xaxes(title_text="年份", tickmode='linear', dtick=2)
     fig_swift.update_yaxes(title_text="美元佔比 (%)", range=[0, 100], secondary_y=False)
     fig_swift.update_yaxes(title_text="人民幣佔比 (%)", range=[0, 10], secondary_y=True)
 
@@ -581,7 +371,7 @@ elif page_selection == "國際政經與資金流動":
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# 模組五：量化策略回測實驗室
+# 模組六：量化策略回測實驗室
 # ----------------------------------------------------
 elif page_selection == "量化策略回測實驗室":
     st.subheader("📋 策略配置：等權重科技股組合 vs 台灣加權股價報酬指數")

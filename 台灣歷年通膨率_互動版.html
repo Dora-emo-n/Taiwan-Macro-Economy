@@ -1,0 +1,69 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>台灣歷史通膨儀表板</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0; padding: 20px;
+        }
+        .container {
+            max-width: 1000px; margin: auto;
+            background: white; padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        /* 精美文字區塊樣式 */
+        #inflation-details {
+            background-color: #f8f9fa;
+            color: #333;
+            padding: 20px; margin-top: 15px;
+            border-radius: 8px; border: 1px solid #ddd;
+            border-left: 6px solid #e74c3c;
+            font-size: 16px; line-height: 1.6;
+            min-height: 60px; transition: 0.3s;
+        }
+        h3 { margin-top: 0; color: #c0392b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div>                        <script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.5.0.min.js" integrity="sha256-fHbNLP+GlIXN+efbQec78UkemUz3NJp7UmfGxC1tNxs=" crossorigin="anonymous"></script>                <div id="d6cc7422-8ee5-4900-9362-58ed3e8e8358" class="plotly-graph-div" style="height:100%; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("d6cc7422-8ee5-4900-9362-58ed3e8e8358")) {                    Plotly.newPlot(                        "d6cc7422-8ee5-4900-9362-58ed3e8e8358",                        [{"hovertemplate":"\u003cb\u003e%{x}\u5e74\u003c\u002fb\u003e\u003cbr\u003e\u901a\u81a8\u5e74\u589e\u7387: %{y:.2f}%\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":["red","red","red","red","red","red","red","red","red","red","red","blue","blue","blue","blue","blue","blue","red","red","red","red","red","red","red","red","blue","blue","blue","blue","blue","blue","blue","blue","red","blue","blue","red","blue","blue","blue","blue","blue","blue","blue","blue","blue","blue","blue","blue","blue","red","red","red","blue"]},"name":"\u901a\u81a8\u7387 (YoY)","x":{"dtype":"f8","bdata":"AAAAAADMnkAAAAAAANCeQAAAAAAA1J5AAAAAAADYnkAAAAAAANyeQAAAAAAA4J5AAAAAAADknkAAAAAAAOieQAAAAAAA7J5AAAAAAADwnkAAAAAAAPieQAAAAAAA\u002fJ5AAAAAAAAAn0AAAAAAAASfQAAAAAAACJ9AAAAAAAAMn0AAAAAAABCfQAAAAAAAFJ9AAAAAAAAYn0AAAAAAAByfQAAAAAAAIJ9AAAAAAAAkn0AAAAAAACifQAAAAAAALJ9AAAAAAAAwn0AAAAAAADSfQAAAAAAAOJ9AAAAAAAA8n0AAAAAAAECfQAAAAAAARJ9AAAAAAABIn0AAAAAAAEyfQAAAAAAAUJ9AAAAAAABUn0AAAAAAAFifQAAAAAAAXJ9AAAAAAABgn0AAAAAAAGSfQAAAAAAAaJ9AAAAAAABsn0AAAAAAAHCfQAAAAAAAdJ9AAAAAAAB4n0AAAAAAAHyfQAAAAAAAgJ9AAAAAAACEn0AAAAAAAIifQAAAAAAAjJ9AAAAAAACQn0AAAAAAAJSfQAAAAAAAmJ9AAAAAAACcn0AAAAAAAKCfQAAAAAAApJ9A"},"y":{"dtype":"f8","bdata":"ZmZmZmZmBkAAAAAAAAAIQDMzMzMzMypAAAAAAADAR0DNzMzMzMwUQAAAAAAAAARAAAAAAAAAHEAzMzMzMzMXQJqZmZmZmSNAAAAAAAAAM0COFQbxX7EHQAAAAAAA4PU\u002fwBVVc8Tvob+QradyjC\u002fEvxCWGy3KduY\u002fIHusB0Is4D+YxoC91Yf0P13tiaUPqxFAXNGRGv2GEEC6muvlyPgMQDzxC7mf3hFAgFcWeGWBB0AaXHbYIGQQQCxYFpvnUQ1AZleQdvOdCEDo4sktntzsPwxjtrMI\u002fvo\u002fANL3ibsvxj\u002fwKqgHCvnzPwAAAAAAAAAAAAAAAAAAyb9IIECAAAHSv8SAl\u002f9Utfk\u002fHqcIVvhxAkAoGzT5skHjP\u002fTX1RFRtvw\u002flt1qP1ZMDEB8WPVm9SHsv5BGv+Ok5e4\u002fVGnl5fTF9j\u002fUkHfcsd\u002f+P3CPUQ54eOk\u002f7Aj0gXEf8z+AOBHGZZLTv+TeWOH5VvY\u002fqKdJBQWy4z8kqzhtQbv1P2B3gXkKreE\u002fcGrxh\u002fryzb\u002fgpfe\u002f2nz\u002fP6yZmZmZmQdAhBtJnKXkA0CIvG40aXABQODJM3e0kPo\u002f"},"type":"bar"},{"hoverinfo":"skip","marker":{"color":"gold","line":{"color":"orange","width":1},"size":12,"symbol":"star"},"mode":"markers+text","name":"\u91cd\u5927\u6b77\u53f2\u4e8b\u4ef6","text":["\u5371\u6a5f\u524d\u5915","\u7b2c\u4e00\u6b21\u77f3\u6cb9\u5371\u6a5f","\u4e2d\u7f8e\u65b7\u4ea4","\u7b2c\u4e8c\u6b21\u77f3\u6cb9\u5371\u6a5f","\u53f0\u80a1\u6ce1\u6cab","\u4e9e\u6d32\u91d1\u878d\u98a8\u66b4","\u7db2\u8def\u6ce1\u6cab","\u91d1\u878d\u6d77\u562f","\u7d93\u6fdf\u8870\u9000","\u4fc4\u70cf\u6230\u722d"],"textfont":{"color":"black","family":"Arial Black","size":13},"textposition":["top center","top center","bottom center","top center","top center","top center","top center","top center","top center","top center"],"x":{"dtype":"f8","bdata":"AAAAAADUnkAAAAAAANieQAAAAAAA7J5AAAAAAADwnkAAAAAAABSfQAAAAAAANJ9AAAAAAABEn0AAAAAAAGCfQAAAAAAAZJ9AAAAAAACYn0A="},"y":{"dtype":"f8","bdata":"MzMzMzMzL0AAAAAAAABJQJqZmZmZmShAAAAAAACANUBd7YmlD6sbQLp4cosnNwtAAAAAAAAABEDLbrUfKyYYQMJThUwF7\u002fk\u002f1szMzMzMFUA="},"type":"scatter"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"shapes":[{"line":{"color":"black","dash":"dot"},"type":"line","x0":0,"x1":1,"xref":"x domain","y0":2.0,"y1":2.0,"yref":"y"}],"annotations":[{"showarrow":false,"text":"\u592e\u884c\u901a\u81a8\u8b66\u6212\u7dda","x":0,"xanchor":"left","xref":"x domain","y":2.0,"yanchor":"bottom","yref":"y"}],"title":{"font":{"size":22},"text":"\u53f0\u7063\u6b77\u5e74\u901a\u81a8\u7387\u8207\u91cd\u5927\u653f\u7d93\u4e8b\u4ef6 (1971-2024)"},"xaxis":{"title":{"text":"\u5e74\u4efd"},"tickmode":"linear","dtick":5},"yaxis":{"title":{"text":"CPI \u5e74\u589e\u7387 (%)"},"range":[-2,50]},"margin":{"t":80},"plot_bgcolor":"white","hovermode":"x unified"},                        {"responsive": true}                    )                };            </script>        </div>
+
+        <div id="inflation-details">
+            💡 點擊圖表上的黃色星星或柱狀圖，查看該年代通膨飆升或通縮危機的深度政經分析。
+        </div>
+    </div>
+
+    <script>
+        // 從 Python 注入的事件字典
+        const eventData = {"1973": {"title": "危機前夕", "detail": "中東戰爭導致油價飆漲，全球物價開始蠢動。"}, "1974": {"title": "第一次石油危機", "detail": "台灣通膨率創下 47.5% 的歷史天價，政府採取強烈干預手段。"}, "1979": {"title": "中美斷交", "detail": "中美斷交引發國內恐慌，加上伊朗革命導致油價翻倍，物價再次失控。"}, "1980": {"title": "第二次石油危機", "detail": "通膨率飆升至 19.0%，央行實施緊縮貨幣政策以穩定物價。"}, "1989": {"title": "台股泡沫", "detail": "台股狂飆逼近萬點，地下投資盛行，熱錢引發短暫的物價上漲。"}, "1997": {"title": "亞洲金融風暴", "detail": "亞洲多國貨幣貶值，台灣雖受創較輕，但內需降溫使通膨下滑。"}, "2001": {"title": "網路泡沫", "detail": "台灣面臨史上首次經濟負成長，需求不振，出現通縮疑慮。"}, "2008": {"title": "金融海嘯", "detail": "金融海嘯前夕，國際油價與農工原料狂漲，推升通膨至 3.5%。"}, "2009": {"title": "經濟衰退", "detail": "全球經濟大衰退，台灣出口重挫，創下罕見通縮。"}, "2022": {"title": "俄烏戰爭", "detail": "疫情後遺症疊加地緣政治衝突，引發嚴重的輸入性通膨。"}};
+
+        // 等待 Plotly 載入完成
+        setTimeout(function() {
+            const plotDivs = document.getElementsByClassName('plotly-graph-div');
+            if(plotDivs.length > 0) {
+                const plot = plotDivs[0];
+                const detailBox = document.getElementById('inflation-details');
+
+                // 監聽點擊事件
+                plot.on('plotly_click', function(data) {
+                    const x = data.points[0].x; // 取得點擊的年份
+
+                    if(eventData[x]) {
+                        detailBox.style.borderLeftColor = "#e74c3c";
+                        detailBox.innerHTML = "<h3>" + x + " 年：" + eventData[x].title + "</h3><p>" + eventData[x].detail + "</p>";
+                    } else {
+                        detailBox.style.borderLeftColor = "#95a5a6";
+                        detailBox.innerHTML = "<b>" + x + " 年：</b> 該年度無重大政經異常記錄。點擊有『黃色星星』的年份以查看深度歷史事件。";
+                    }
+                });
+            }
+        }, 500); // 延遲 500ms 確保圖表 DOM 渲染完畢
+    </script>
+</body>
+</html>
