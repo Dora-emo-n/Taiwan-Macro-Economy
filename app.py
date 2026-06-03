@@ -79,11 +79,14 @@ def load_extended_data():
     sim_dates = pd.date_range(start='2015-01-01', end='2025-12-31', freq='B')
     daily_ret_port = np.random.normal(0.00045, 0.011, len(sim_dates))
     daily_ret_bench = np.random.normal(0.00035, 0.013, len(sim_dates))
+
     crash_2020 = (sim_dates > '2020-02-15') & (sim_dates < '2020-03-25')
     crash_2022 = (sim_dates > '2022-01-01') & (sim_dates < '2022-10-31')
-    daily_ret_port[crash_2020] -= 0.005;
+
+    # 徹底展開以策安全
+    daily_ret_port[crash_2020] -= 0.005
     daily_ret_bench[crash_2020] -= 0.006
-    daily_ret_port[crash_2022] -= 0.001;
+    daily_ret_port[crash_2022] -= 0.001
     daily_ret_bench[crash_2022] -= 0.0015
 
     df_backtest = pd.DataFrame({
@@ -99,14 +102,15 @@ df_swift, df_backtest = load_extended_data()
 
 
 # ==========================================
-# 三、 原始圖表生成函數 (完整保留)
+# 三、 原始圖表生成函數 (完整保留且已手動縮排修正)
 # ==========================================
 def get_fig_1():
     try:
         df_gdp = pd.read_excel('gdp_exchange.xlsx', skiprows=2)
         year_col = df_gdp.columns[0]
         gdp_col = '經濟成長率(%)'
-        if gdp_col not in df_gdp.columns: gdp_col = [col for col in df_gdp.columns if '成長率' in str(col)][0]
+        if gdp_col not in df_gdp.columns:
+            gdp_col = [col for col in df_gdp.columns if '成長率' in str(col)][0]
     except Exception as e:
         df_gdp = pd.DataFrame({'年份': range(1970, 2025), '經濟成長率(%)': np.random.uniform(2, 10, 55)})
         year_col, gdp_col = '年份', '經濟成長率(%)'
@@ -148,7 +152,7 @@ def get_fig_1():
     fig.add_trace(go.Scatter(x=event_df[year_col], y=event_df[gdp_col], mode='markers',
                              marker=dict(symbol='star', size=14, color='gold', line=dict(width=1, color='red')),
                              name='重大歷史事件'))
-    fig.add_hline(y=0, line_color="black")
+    fig.add_hline(y=0, line_color="gray")
     fig.update_layout(title='台灣歷年經濟動能與重大政經事件推演', hovermode="x unified", plot_bgcolor='rgba(0,0,0,0)',
                       paper_bgcolor='rgba(0,0,0,0)')
     return fig, event_analysis
@@ -170,8 +174,11 @@ def get_fig_2():
     colors = ['#8B0000' if val >= 30000 else '#CD5C5C' if val >= 20000 else '#4682B4' if val >= 10000 else '#87CEFA' for
               val in df_gdp['GDP_Per_Capita_USD']]
     fig.add_trace(go.Bar(x=df_gdp['Year'], y=df_gdp['GDP_Per_Capita_USD'], name='人均 GDP', marker_color=colors))
+
+    # 手動展開
     for val, text in [(10000, "突破1萬"), (20000, "突破2萬"), (30000, "突破3萬")]:
         fig.add_hline(y=val, line_dash="dot", line_color="gray", annotation_text=text)
+
     event_years = df_gdp[df_gdp['Year'].isin(gdp_events.keys())]
     fig.add_trace(
         go.Scatter(x=event_years['Year'], y=event_years['GDP_Per_Capita_USD'] * 1.08 + 500, mode='markers+text',
@@ -237,8 +244,11 @@ def get_fig_5():
     years = list(range(1970, 2025))
     np.random.seed(42)
     trade_balance = np.linspace(-10, 800, len(years)) + np.random.normal(0, 40, len(years))
+
+    # 🚨 修正核心：手動斷行並縮排
     for y, v in [(1974, -13.2), (1987, 186), (2001, 156), (2008, 152), (2018, 492), (2021, 654), (2024, 900)]:
-    trade_balance[years.index(y)] = v
+        trade_balance[years.index(y)] = v
+
     df_trade = pd.DataFrame({'年份': years, '貿易差額': trade_balance})
     df_trade['10Y_MA'] = df_trade['貿易差額'].rolling(window=10, min_periods=1).mean()
     trade_events = {1974: {"title": "石油危機", "desc": "進口大增。"}, 2001: {"title": "網路泡沫", "desc": "出口衰退。"},
@@ -299,10 +309,12 @@ def get_fig_7():
         df_cpi['YoY(%)'] = df_cpi[index_col].pct_change() * 100
         df_cpi = df_cpi.dropna(subset=['YoY(%)'])
         df_cpi['年份'] = df_cpi[year_col]
-    except:
+    except Exception as e:
         df_cpi = pd.DataFrame({'年份': range(1971, 2025), 'YoY(%)': np.random.uniform(0, 3, 54)})
+
+        # 🚨 修正核心：手動斷行並縮排
         for y, v in [(1973, 13.1), (1974, 47.5), (1979, 9.8), (1980, 19.0), (1989, 4.5), (2008, 3.5), (2022, 2.9)]:
-        df_cpi.loc[df_cpi['年份'] == y, 'YoY(%)'] = v
+            df_cpi.loc[df_cpi['年份'] == y, 'YoY(%)'] = v
 
     inflation_events = {1974: {"title": "第一次石油危機", "desc": "創下47.5%天價。"},
                         1980: {"title": "第二次石油危機", "desc": "通膨率飆升。"},
@@ -382,10 +394,13 @@ def get_fig_10():
     fig.add_trace(
         go.Pie(labels=['農業', '工業', '服務業'], values=[agri[-1], ind[-1], 100 - agri[-1] - ind[-1]], hole=0.45,
                marker=dict(colors=['#2ca02c', '#1f77b4', '#ff7f0e'])), row=1, col=1)
+
+    # 🚨 修正核心：手動斷行並縮排
     for c, n, col in [('農業', '農業', '#2ca02c'), ('工業', '工業', '#1f77b4'), ('服務業', '服務業', '#ff7f0e')]:
         fig.add_trace(
             go.Scatter(x=df_ind['年份'], y=df_ind[c], name=n, mode='lines', stackgroup='one', line=dict(color=col)),
             row=1, col=2)
+
     fig.update_layout(title='產業經濟結構轉型', plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
     return fig, industry_events
 
@@ -394,28 +409,29 @@ def get_fig_11():
     years_full = np.arange(1970, 2026)
     records = []
 
-    # 修正重點：避免使用會被奇怪斷行的寫法，改為安全的迭代展開
     anc = [1970, 1985, 2000, 2010, 2025]
     d1 = [years_full, np.interp(years_full, anc, [300000, 480000, 200000, 120000, 60000]),
           np.interp(years_full, anc, [1000, 5000, 3500, 2800, 2000]),
           np.interp(years_full, anc, [0.5, 0.8, 1.5, 2.0, 2.5])]
-    for i in range(len(years_full)): records.append(
-        {'年份': d1[0][i], '產業': '紡織與成衣', '類別': '傳統產業', '就業人數': int(d1[1][i]),
-         '出口產值': max(d1[2][i], 10), '研發投入': round(d1[3][i], 2)})
+
+    # 🚨 修正核心：手動斷行並縮排
+    for i in range(len(years_full)):
+        records.append({'年份': d1[0][i], '產業': '紡織與成衣', '類別': '傳統產業', '就業人數': int(d1[1][i]),
+                        '出口產值': max(d1[2][i], 10), '研發投入': round(d1[3][i], 2)})
 
     d2 = [years_full, np.interp(years_full, anc, [20000, 80000, 250000, 400000, 650000]),
           np.interp(years_full, anc, [50, 1500, 35000, 100000, 280000]),
           np.interp(years_full, anc, [1.0, 3.0, 6.0, 10.0, 16.0])]
-    for i in range(len(years_full)): records.append(
-        {'年份': d2[0][i], '產業': '電子零組件', '類別': '科技資訊', '就業人數': int(d2[1][i]),
-         '出口產值': max(d2[2][i], 10), '研發投入': round(d2[3][i], 2)})
+    for i in range(len(years_full)):
+        records.append({'年份': d2[0][i], '產業': '電子零組件', '類別': '科技資訊', '就業人數': int(d2[1][i]),
+                        '出口產值': max(d2[2][i], 10), '研發投入': round(d2[3][i], 2)})
 
     d3 = [years_full, np.interp(years_full, anc, [5000, 40000, 200000, 300000, 350000]),
           np.interp(years_full, anc, [20, 800, 25000, 60000, 95000]),
           np.interp(years_full, anc, [0.5, 2.0, 4.0, 5.5, 7.0])]
-    for i in range(len(years_full)): records.append(
-        {'年份': d3[0][i], '產業': '電腦與光學', '類別': '科技資訊', '就業人數': int(d3[1][i]),
-         '出口產值': max(d3[2][i], 10), '研發投入': round(d3[3][i], 2)})
+    for i in range(len(years_full)):
+        records.append({'年份': d3[0][i], '產業': '電腦與光學', '類別': '科技資訊', '就業人數': int(d3[1][i]),
+                        '出口產值': max(d3[2][i], 10), '研發投入': round(d3[3][i], 2)})
 
     df_m = pd.DataFrame(records)
     fig = px.scatter(df_m, x="就業人數", y="出口產值", animation_frame="年份", animation_group="產業", size="研發投入",
@@ -594,7 +610,7 @@ elif page_selection == "國際政經與資金流動":
 elif page_selection == "量化策略回測實驗室":
     st.subheader("📋 策略配置：科技股組合 vs 台灣加權股價報酬指數")
     st.write("""
-    * **核心權重配置**：嚴格採用 **等權重分配 (各佔 20%)**，配置於五檔特定指標科技股（聯電 UMC、華碩 ASUS、微星 MSI 等）。
+    * **核心權重配置**：嚴格採用 **等權重分配 (各佔 20%)**，配置於五檔特定指標科技股（如聯電、華碩、微星等）。
     * **防呆機制補充**：若次要資料缺失時，系統將依據 **最低本益比 (Lowest P/E ratio)** 標準進行個股遞補。
     * **風險測試參數**：回測夏普值時，無風險利率基準已設定為 **5%**。
     * **高頻資料對照**：採用 **日資料 (Daily Data)** 精確捕捉市場回撤波動，並對標客觀的台灣加權報酬指數。
