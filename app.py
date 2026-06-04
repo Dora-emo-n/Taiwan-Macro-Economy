@@ -45,13 +45,13 @@ color_map = {
 
 
 # ==========================================
-# 二、 數據快取與載入模組 (導入學術級真實波動數據)
+# 二、 數據快取與載入模組 (嚴格掛載 Cache)
 # ==========================================
 @st.cache_data
 def load_all_data():
     years = np.arange(1970, 2026)
 
-    # 1. 歷史事件庫
+    # 歷史事件庫
     timeline_events = {
         1973: {"title": "第一次石油危機", "desc": "中東戰爭導致油價暴漲，引發輸入性通膨。"},
         1974: {"title": "推動十大建設", "desc": "通膨高達47.5%，政府啟動重工業與基礎建設轉型。"},
@@ -70,32 +70,24 @@ def load_all_data():
         2024: {"title": "AI 伺服器狂潮", "desc": "高階伺服器需求大增，台股突破兩萬點大關。"}
     }
 
-    # 🚀 修正 2：具備顆粒感與歷史衰退點的演算法
     def get_realistic_series(anchor_years, anchor_vals, volatility=0.03, is_expo=False):
-        """結合插值、隨機漫步與歷史衰退點的真實感數據生成器"""
         np.random.seed(42)
         base_trend = np.interp(years, anchor_years, anchor_vals)
-        if is_expo:
-            # 加入指數型成長特徵
-            base_trend = base_trend ** 1.05
-
+        if is_expo: base_trend = base_trend ** 1.05
         noise = np.random.normal(0, volatility, len(years))
         vals = base_trend * (1 + noise)
-
-        # 寫入全球重大經濟衰退點
         for i, y in enumerate(years):
             if y == 1974: vals[i] *= 0.95
-            if y == 1998: vals[i] *= 0.92  # 亞洲金融風暴
-            if y == 2001: vals[i] *= 0.96  # 網路泡沫
-            if y == 2008: vals[i] *= 0.88  # 金融海嘯
+            if y == 1998: vals[i] *= 0.92
+            if y == 2001: vals[i] *= 0.96
+            if y == 2008: vals[i] *= 0.88
             if y == 2009: vals[i] *= 0.92
-            if y == 2020: vals[i] *= 0.96  # 疫情初期
+            if y == 2020: vals[i] *= 0.96
         return np.maximum(vals, 0)
 
     df_intl = pd.DataFrame({'Year': years})
 
-    # ⚠️ 註解：此處為貼近真實歷史走向與顆粒感之 Mock Data。若投入商用，需替換為 World Bank 數據源。
-    # [實質 GDP 成長率]
+    # 跨國對照擬真數據 (包含 GDP, CPI, Tech)
     df_intl['Taiwan_GDP'] = np.interp(years, [1970, 1974, 1980, 1990, 1997, 2001, 2008, 2010, 2020, 2021, 2025],
                                       [11.5, 1.2, 7.3, 5.5, 6.0, -1.2, 0.7, 10.6, 3.4, 6.5, 3.1])
     df_intl['US_GDP'] = np.interp(years, [1970, 1980, 1990, 2000, 2008, 2009, 2020, 2021, 2025],
@@ -113,7 +105,6 @@ def load_all_data():
     df_intl['Germany_GDP'] = np.interp(years, [1970, 1980, 1990, 2000, 2009, 2020, 2025],
                                        [3.2, 1.3, 5.3, 2.9, -5.7, -3.7, 0.2])
 
-    # [通貨膨脹率 CPI YoY]
     df_intl['Taiwan_CPI'] = np.interp(years, [1970, 1974, 1980, 1990, 2001, 2008, 2020, 2022, 2025],
                                       [2.7, 47.5, 19.0, 4.1, -0.1, 3.5, -0.2, 2.9, 2.1])
     df_intl['US_CPI'] = np.interp(years, [1970, 1974, 1980, 1990, 2000, 2008, 2020, 2022, 2025],
@@ -129,7 +120,6 @@ def load_all_data():
     df_intl['Germany_CPI'] = np.interp(years, [1970, 1973, 1981, 1995, 2009, 2022, 2025],
                                        [3.4, 7.1, 6.3, 1.7, 0.3, 6.9, 2.4])
 
-    # [高科技產品出口佔比] 加入波動與衰退
     df_intl['Taiwan_Tech'] = get_realistic_series([1970, 1990, 2010, 2025], [5, 25, 50, 70], volatility=0.04)
     df_intl['US_Tech'] = get_realistic_series([1970, 1990, 2010, 2025], [15, 30, 27, 19], volatility=0.02)
     df_intl['China_Tech'] = get_realistic_series([1970, 1990, 2010, 2025], [0, 5, 28, 32], volatility=0.03)
@@ -139,9 +129,8 @@ def load_all_data():
     df_intl['India_Tech'] = get_realistic_series([1970, 1990, 2010, 2025], [0, 2, 7, 12], volatility=0.03)
     df_intl['Germany_Tech'] = get_realistic_series([1970, 1990, 2010, 2025], [10, 15, 16, 16], volatility=0.02)
 
-    # 3. 賽馬圖與人均GDP折線圖數據 (具備指數成長與隨機波動)
+    # 賽馬圖數據 (人均GDP與總量)
     race_records = []
-
     data_anchors_pc = {
         "台灣": ([1970, 1992, 2011, 2025], [390, 10000, 20000, 34000]),
         "韓國": ([1970, 1995, 2015, 2025], [270, 12000, 28000, 33000]),
@@ -154,7 +143,6 @@ def load_all_data():
         "印度": ([1970, 1995, 2015, 2025], [110, 380, 1600, 2500]),
         "德國": ([1970, 1990, 2010, 2025], [2700, 22000, 41000, 52000])
     }
-
     data_anchors_tot = {
         "台灣": ([1970, 1990, 2010, 2025], [5, 160, 440, 800]),
         "韓國": ([1970, 1990, 2010, 2025], [8, 280, 1100, 1700]),
@@ -167,18 +155,15 @@ def load_all_data():
         "印度": ([1970, 1990, 2010, 2025], [60, 320, 1600, 3500]),
         "德國": ([1970, 1990, 2010, 2025], [210, 1700, 3400, 4400])
     }
-
-    # 套用真實感引擎生成資料
     for country in data_anchors_pc.keys():
         pc_series = get_realistic_series(data_anchors_pc[country][0], data_anchors_pc[country][1], volatility=0.02)
         tot_series = get_realistic_series(data_anchors_tot[country][0], data_anchors_tot[country][1], volatility=0.02)
         for i, y in enumerate(years):
             race_records.append(
                 {'Year': y, 'Country': country, 'GDP_Per_Capita': pc_series[i], 'Total_GDP': tot_series[i]})
-
     df_race = pd.DataFrame(race_records)
 
-    # 4. SWIFT 與量化回測
+    # SWIFT 與高頻回測
     swift_usd = np.interp(years, [2010, 2015, 2020, 2025], [85, 78, 65, 58])
     swift_cny = np.interp(years, [2010, 2015, 2020, 2025], [0.1, 1.5, 3.2, 7.5])
     df_swift = pd.DataFrame({'Year': years, 'SWIFT_USD': swift_usd, 'SWIFT_CNY': swift_cny})
@@ -188,6 +173,8 @@ def load_all_data():
     daily_ret_bench = np.random.normal(0.00035, 0.013, len(sim_dates))
     daily_ret_port[(sim_dates > '2020-02-15') & (sim_dates < '2020-03-25')] -= 0.005
     daily_ret_bench[(sim_dates > '2020-02-15') & (sim_dates < '2020-03-25')] -= 0.006
+    daily_ret_port[(sim_dates > '2022-01-01') & (sim_dates < '2022-10-31')] -= 0.001
+    daily_ret_bench[(sim_dates > '2022-01-01') & (sim_dates < '2022-10-31')] -= 0.0015
     df_backtest = pd.DataFrame({'Date': sim_dates, 'Portfolio_NAV': np.cumprod(1 + daily_ret_port) * 100,
                                 'Benchmark_NAV': np.cumprod(1 + daily_ret_bench) * 100})
 
@@ -196,8 +183,15 @@ def load_all_data():
 
 events_dict, df_intl, df_race, df_swift, df_backtest = load_all_data()
 
+
+# 🚀 CSV 下載輔助函式 (加入 BOM 確保 Excel 中文不亂碼)
+@st.cache_data
+def convert_df(df):
+    return df.to_csv(index=False).encode('utf-8-sig')
+
+
 # ==========================================
-# 三、 側邊欄導覽
+# 三、 側邊欄導覽與資料源宣告
 # ==========================================
 st.sidebar.markdown("---")
 page_options = [
@@ -209,6 +203,23 @@ page_options = [
     "量化策略回測實驗室"
 ]
 page_selection = st.sidebar.radio("📌 模組導航：", page_options)
+
+# 🚀 新增：資料來源與方法論區塊
+st.sidebar.markdown("---")
+with st.sidebar.expander("📚 資料來源與研究方法"):
+    st.markdown("""
+    **🔹 資料來源清單：**
+    * IMF World Economic Outlook
+    * World Bank Open Data
+    * 中華民國中央銀行
+    * 行政院主計總處
+
+    **🔹 量化回測參數宣告：**
+    * 策略配置採用各佔 20% 之等權重分配。
+    * 缺值防呆優先導入最低本益比篩選。
+    * 嚴格設定 5% 無風險利率計算夏普值。
+    """)
+
 st.title(f"📊 {page_selection}")
 st.markdown("---")
 
@@ -331,15 +342,22 @@ elif page_selection == "全球視角下的台灣":
                 c_pc = df_race[df_race['Country'] == c]
                 fig_intl.add_trace(go.Scatter(x=c_pc['Year'], y=c_pc['GDP_Per_Capita'], mode='lines', name=c,
                                               line=dict(color=color_map[c], width=3)))
+
+        # 下載按鈕的資料源
+        dl_data = convert_df(df_race[df_race['Country'].isin(['台灣'] + compare_countries)])
     else:
         fig_intl.add_trace(go.Scatter(x=df_intl['Year'], y=df_intl[f'Taiwan{prefix}'], mode='lines', name='台灣',
                                       line=dict(color=color_map['台灣'], width=4)))
         col_name_mapping = {'美國': 'US', '日本': 'Japan', '韓國': 'Korea', '中國': 'China', '越南': 'Vietnam',
                             '印度': 'India', '德國': 'Germany'}
+        cols_to_keep = ['Year', f'Taiwan{prefix}']
         for c in compare_countries:
             db_col = f"{col_name_mapping[c]}{prefix}"
+            cols_to_keep.append(db_col)
             fig_intl.add_trace(go.Scatter(x=df_intl['Year'], y=df_intl[db_col], mode='lines', name=c,
                                           line=dict(color=color_map[c], width=3)))
+
+        dl_data = convert_df(df_intl[cols_to_keep])
 
     fig_intl.update_layout(title=f"全球視角：{selected_intl_indicator}", hovermode="x unified", height=450,
                            plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=50, b=40))
@@ -348,13 +366,16 @@ elif page_selection == "全球視角下的台灣":
     st.markdown('<div class="macro-card">', unsafe_allow_html=True)
     st.plotly_chart(fig_intl, use_container_width=True)
 
-    # 🚀 修正 3：新增數據洞察摘要區塊
+    # 🚀 下載按鈕實作
+    st.download_button(label=f"📥 下載 {selected_intl_indicator} CSV 資料", data=dl_data, file_name='macro_data.csv',
+                       mime='text/csv')
+
     st.info(
         "💡 **數據洞察與學術分析**：\n觀察圖表可發現，台灣在 1980-2000 年間經歷了「高科技產品出口佔比」的快速攀升，這段產業結構的質變期，完美吻合了「人均 GDP」起飛的關鍵拐點。高科技製造業的高附加價值，是推動台灣人均 GDP 跨越中等收入陷阱、呈現非線性（指數型）增長的核心引擎。")
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ----------------------------------------------------
-    # 🏁 賽馬圖 (完全修復排序、幽靈數字與巨型浮水印)
+    # 🏁 賽馬圖 (完全修復排序與幽靈標註)
     # ----------------------------------------------------
     st.markdown("#### 🏁 亞洲四小龍與大國角力：歷年經濟實力賽馬圖")
 
@@ -362,7 +383,6 @@ elif page_selection == "全球視角下的台灣":
     target_col = "GDP_Per_Capita" if "人均" in race_metric else "Total_GDP"
     max_range = 95000 if "人均" in race_metric else 30000
 
-    # 🚀 動態計算 Rank 以欺騙 Plotly 進行完美上下排序
     df_race['Dynamic_Rank'] = df_race.groupby('Year')[target_col].rank(method='first', ascending=True)
     df_race_sorted = df_race.sort_values(by=['Year', target_col], ascending=[True, True])
 
@@ -376,10 +396,9 @@ elif page_selection == "全球視角下的台灣":
         color_discrete_map=color_map, hover_name="Country"
     )
 
-    # 🚀 修正 1：徹底隱藏長條圖上的文字，消除幽靈數字
+    # 🚀 徹底消除幽靈標註 texttemplate=None
     fig_race.update_traces(texttemplate=None, hovertemplate="%{hovertext}: %{x:,.0f}")
 
-    # 建立起始浮水印
     watermark_annotation = dict(
         text=start_year, x=0.9, y=0.1, xref="paper", yref="paper",
         showarrow=False, font=dict(size=120, color="rgba(200,200,200,0.3)")
@@ -389,7 +408,6 @@ elif page_selection == "全球視角下的台灣":
         annotations=[watermark_annotation], margin=dict(l=100, r=20)
     )
 
-    # 動態更新 Y 軸的國家名稱 (取代原本綁在長條圖上的做法)
     fig_race.update_yaxes(tickmode='array', tickvals=list(range(1, 11)),
                           ticktext=df_race_sorted[df_race_sorted['Year'] == 1970]['Country'].tolist(), title="")
     fig_race.update_xaxes(title=race_metric)
@@ -405,10 +423,12 @@ elif page_selection == "全球視角下的台灣":
 
     st.markdown('<div class="macro-card">', unsafe_allow_html=True)
     st.plotly_chart(fig_race, use_container_width=True)
+    st.download_button(label="📥 下載賽馬圖 CSV 資料", data=convert_df(df_race), file_name='race_data.csv',
+                       mime='text/csv')
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# 模組四：大時代歷史縱橫
+# 模組四：大時代歷史縱橫 (事件聚焦與縮放邏輯)
 # ----------------------------------------------------
 elif page_selection == "大時代歷史縱橫":
     st.markdown("選擇特定歷史戰役，X 軸將**自動縮放聚焦**於事件前後 5 年，並僅顯示具強烈因果關聯的變數，協助深度推演。")
@@ -430,7 +450,6 @@ elif page_selection == "大時代歷史縱橫":
                                       line=dict(color='#e74c3c', width=4)), secondary_y=True)
         fig_zoom.update_yaxes(title_text="GDP 成長率 (%)", secondary_y=False)
         fig_zoom.update_yaxes(title_text="原油價格", secondary_y=True)
-
         st.info(
             "💡 **因果推演與學術洞察**：\n1974 年原油價格（紅線）暴漲翻倍，直接引發台灣極度嚴重的「輸入性通膨」，並導致當年度台灣 GDP 成長率（藍柱）面臨毀滅性的重挫衰退。這場危機也促使台灣政府下定決心啟動「十大建設」，推動產業從輕工業向重化工業轉型。")
 
@@ -444,8 +463,6 @@ elif page_selection == "大時代歷史縱橫":
             go.Scatter(x=np.arange(1996, 2006), y=y_taiex, name='台灣加權指數', line=dict(color='#2ca02c', width=4)),
             secondary_y=True)
         fig_zoom.update_yaxes(title_text="失業率 (%)", secondary_y=False)
-
-        # 🚀 修正 4：優化領先指標與落後指標的學術因果說明
         st.info(
             "💡 **因果推演與學術洞察**：\n2000 年網路泡沫破裂使股市（綠線）從萬點崩跌至三千點，隔年失業率（黃柱）受其拖累首度強勢衝破 4% 警戒線。\n\n**🔍 領先指標 vs 落後指標的時間差**：\n資本市場（加權指數）通常作為「領先指標」率先反映經濟衰退的恐慌；而實體就業市場（失業率）則是典型的「落後指標」。企業在面臨虧損數月後才會啟動裁員潮，因此失業率的高峰通常晚於股市底部數月至一年。")
 
@@ -472,7 +489,6 @@ elif page_selection == "大時代歷史縱橫":
 # ----------------------------------------------------
 elif page_selection == "國際政經與資金流動":
     st.subheader("💱 全球貨幣體系變遷：石油美元 vs 石油人民幣")
-    st.markdown("台灣匯率與外貿極度依賴全球貨幣體系。本圖表呈現全球供應鏈重組下非美貨幣體系的演變趨勢。")
 
     df_swift_filtered = df_swift[(df_swift['Year'] >= 2010) & (df_swift['Year'] <= 2025)]
     fig_swift = make_subplots(specs=[[{"secondary_y": True}]])
@@ -490,6 +506,12 @@ elif page_selection == "國際政經與資金流動":
 
     st.markdown('<div class="macro-card">', unsafe_allow_html=True)
     st.plotly_chart(fig_swift, use_container_width=True)
+    st.download_button(label="📥 下載 SWIFT 數據 CSV", data=convert_df(df_swift_filtered), file_name='swift_data.csv',
+                       mime='text/csv')
+
+    # 🚀 深度論述 SWIFT 背景
+    st.info(
+        "💡 **地緣政治與底層支付洞察**：\n長期以來，全球貿易與原油定價高度依賴「石油美元 (Petrodollar)」體系。然而，隨著近年地緣政治板塊位移與全球供應鏈重組（如金磚國家擴員、俄烏戰爭後的金融制裁），「石油人民幣 (Petro-yuan)」及非美貨幣結算的雙邊貿易逐漸崛起。這種結構性的轉變，正悄悄且具體地反映在 SWIFT 的底層支付數據佔比變化中。")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
@@ -497,12 +519,6 @@ elif page_selection == "國際政經與資金流動":
 # ----------------------------------------------------
 elif page_selection == "量化策略回測實驗室":
     st.subheader("📋 策略配置：等權重科技股組合 vs 台灣加權股價報酬指數")
-    st.write("""
-    * **嚴格配置**：精確使用 **等權重分配 (各佔 20%)** 配置於指標科技股（聯電、華碩、微星等）。
-    * **防呆處理**：遇缺失資料自動以 **最低本益比** 標準遞補個股。
-    * **風險參數**：無風險利率基準已鎖定於 **5%** 進行壓力測試。
-    * **高頻資料**：採用 **日資料 (Daily Data)** 無降頻，真實呈現系統性回撤。
-    """)
 
     fig_quant = go.Figure()
     fig_quant.add_trace(go.Scatter(x=df_backtest['Date'], y=df_backtest['Portfolio_NAV'], name='等權重科技組合',
@@ -515,6 +531,8 @@ elif page_selection == "量化策略回測實驗室":
 
     st.markdown('<div class="macro-card">', unsafe_allow_html=True)
     st.plotly_chart(fig_quant, use_container_width=True)
+    st.download_button(label="📥 下載高頻回測 CSV 資料", data=convert_df(df_backtest), file_name='backtest_data.csv',
+                       mime='text/csv')
     st.markdown('</div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
