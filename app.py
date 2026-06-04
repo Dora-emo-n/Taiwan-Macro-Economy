@@ -6,6 +6,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import statsmodels.api as sm
 import streamlit.components.v1 as components
+from streamlit_option_menu import option_menu
 
 # ==========================================
 # 一、 網頁基本設定 & 全局 UI/UX 優化
@@ -16,6 +17,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# 🚀 修正 2：徹底弱化 Expander 樣式，移除鮮豔色彩，讓導航選單成為主角
 theme_css = """
 <style>
     .stApp { background-color: #f4f6f9; color: #2c3e50; }
@@ -23,8 +25,11 @@ theme_css = """
     .event-box { background-color: #f8f9fa; padding: 15px 20px; border-left: 5px solid #ff7f0e; color: #4a5568; border-radius: 4px; margin-bottom: 12px; }
     .stTabs [data-baseweb="tab-list"] { gap: 24px; }
     .stTabs [data-baseweb="tab"] { height: 50px; font-size: 16px; font-weight: 600; }
-    .stExpander { background-color: #ffffff !important; border-color: #eef2f6 !important; }
-    div[data-testid="stExpander"] details summary p { font-size: 1.1rem; font-weight: 600; color: #d62728; }
+
+    /* 弱化 Expander (手風琴) 的視覺佔比 */
+    .stExpander { background-color: transparent !important; border: 1px solid #e2e8f0 !important; box-shadow: none !important; }
+    div[data-testid="stExpander"] details summary p { font-size: 1rem; font-weight: 500; color: #64748b; } /* 低調的中性灰色 */
+
     #back-to-top {
         position: fixed; bottom: 40px; right: 40px; background-color: #d62728; color: white;
         width: 50px; height: 50px; border-radius: 50%; text-align: center; line-height: 50px;
@@ -45,13 +50,12 @@ color_map = {
 
 
 # ==========================================
-# 二、 數據快取與載入模組 (嚴格掛載 Cache)
+# 二、 數據快取與載入模組
 # ==========================================
 @st.cache_data
 def load_all_data():
     years = np.arange(1970, 2026)
 
-    # 歷史事件庫
     timeline_events = {
         1973: {"title": "第一次石油危機", "desc": "中東戰爭導致油價暴漲，引發輸入性通膨。"},
         1974: {"title": "推動十大建設", "desc": "通膨高達47.5%，政府啟動重工業與基礎建設轉型。"},
@@ -86,8 +90,6 @@ def load_all_data():
         return np.maximum(vals, 0)
 
     df_intl = pd.DataFrame({'Year': years})
-
-    # 跨國對照擬真數據 (包含 GDP, CPI, Tech)
     df_intl['Taiwan_GDP'] = np.interp(years, [1970, 1974, 1980, 1990, 1997, 2001, 2008, 2010, 2020, 2021, 2025],
                                       [11.5, 1.2, 7.3, 5.5, 6.0, -1.2, 0.7, 10.6, 3.4, 6.5, 3.1])
     df_intl['US_GDP'] = np.interp(years, [1970, 1980, 1990, 2000, 2008, 2009, 2020, 2021, 2025],
@@ -129,7 +131,6 @@ def load_all_data():
     df_intl['India_Tech'] = get_realistic_series([1970, 1990, 2010, 2025], [0, 2, 7, 12], volatility=0.03)
     df_intl['Germany_Tech'] = get_realistic_series([1970, 1990, 2010, 2025], [10, 15, 16, 16], volatility=0.02)
 
-    # 賽馬圖數據 (人均GDP與總量)
     race_records = []
     data_anchors_pc = {
         "台灣": ([1970, 1992, 2011, 2025], [390, 10000, 20000, 34000]),
@@ -163,7 +164,6 @@ def load_all_data():
                 {'Year': y, 'Country': country, 'GDP_Per_Capita': pc_series[i], 'Total_GDP': tot_series[i]})
     df_race = pd.DataFrame(race_records)
 
-    # SWIFT 與高頻回測
     swift_usd = np.interp(years, [2010, 2015, 2020, 2025], [85, 78, 65, 58])
     swift_cny = np.interp(years, [2010, 2015, 2020, 2025], [0.1, 1.5, 3.2, 7.5])
     df_swift = pd.DataFrame({'Year': years, 'SWIFT_USD': swift_usd, 'SWIFT_CNY': swift_cny})
@@ -184,41 +184,63 @@ def load_all_data():
 events_dict, df_intl, df_race, df_swift, df_backtest = load_all_data()
 
 
-# 🚀 CSV 下載輔助函式 (加入 BOM 確保 Excel 中文不亂碼)
 @st.cache_data
 def convert_df(df):
     return df.to_csv(index=False).encode('utf-8-sig')
 
 
 # ==========================================
-# 三、 側邊欄導覽與資料源宣告
+# 三、 側邊欄導覽 (🚀 修正 1：導入卡片式精美選單)
 # ==========================================
-st.sidebar.markdown("---")
-page_options = [
-    "台灣1970~2025經濟歷史大事紀",
-    "單項指標數據圖表探索",
-    "全球視角下的台灣",
-    "大時代歷史縱橫",
-    "國際政經與資金流動",
-    "量化策略回測實驗室"
-]
-page_selection = st.sidebar.radio("📌 模組導航：", page_options)
+with st.sidebar:
+    st.markdown("<h2 style='text-align: center;'>🌐 總經分析系統</h2>", unsafe_allow_html=True)
+    st.markdown("---")
 
-# 🚀 新增：資料來源與方法論區塊
-st.sidebar.markdown("---")
-with st.sidebar.expander("📚 資料來源與研究方法"):
-    st.markdown("""
-    **🔹 資料來源清單：**
-    * IMF World Economic Outlook
-    * World Bank Open Data
-    * 中華民國中央銀行
-    * 行政院主計總處
+    # 採用 streamlit-option-menu 建立精美的卡片式導航
+    page_selection = option_menu(
+        menu_title=None,  # 不顯示額外標題
+        options=[
+            "台灣1970~2025經濟歷史大事紀",
+            "單項指標數據圖表探索",
+            "全球視角下的台灣",
+            "大時代歷史縱橫",
+            "國際政經與資金流動",
+            "量化策略回測實驗室"
+        ],
+        icons=[
+            "clock-history",
+            "bar-chart-line",
+            "globe2",
+            "search",
+            "cash-coin",
+            "graph-up-arrow"
+        ],
+        default_index=0,
+        styles={
+            "container": {"padding": "0!important", "background-color": "transparent"},
+            "icon": {"color": "#ff7f0e", "font-size": "18px"},
+            "nav-link": {"font-size": "15px", "text-align": "left", "margin": "2px", "--hover-color": "#f1f5f9",
+                         "color": "#334155"},
+            "nav-link-selected": {"background-color": "#d62728", "color": "white", "font-weight": "bold"},
+        }
+    )
 
-    **🔹 量化回測參數宣告：**
-    * 策略配置採用各佔 20% 之等權重分配。
-    * 缺值防呆優先導入最低本益比篩選。
-    * 嚴格設定 5% 無風險利率計算夏普值。
-    """)
+    st.markdown("---")
+
+    # 低調、中性樣式的資料來源註腳
+    with st.expander("ℹ️ 資料來源與研究方法"):
+        st.markdown("""
+        **🔹 資料來源清單：**
+        * IMF World Economic Outlook
+        * World Bank Open Data
+        * 中華民國中央銀行
+        * 行政院主計總處
+
+        **🔹 量化回測參數宣告：**
+        * 策略配置採用各佔 20% 之等權重分配。
+        * 缺值防呆優先導入最低本益比篩選。
+        * 嚴格設定 5% 無風險利率計算夏普值。
+        """)
 
 st.title(f"📊 {page_selection}")
 st.markdown("---")
@@ -342,8 +364,6 @@ elif page_selection == "全球視角下的台灣":
                 c_pc = df_race[df_race['Country'] == c]
                 fig_intl.add_trace(go.Scatter(x=c_pc['Year'], y=c_pc['GDP_Per_Capita'], mode='lines', name=c,
                                               line=dict(color=color_map[c], width=3)))
-
-        # 下載按鈕的資料源
         dl_data = convert_df(df_race[df_race['Country'].isin(['台灣'] + compare_countries)])
     else:
         fig_intl.add_trace(go.Scatter(x=df_intl['Year'], y=df_intl[f'Taiwan{prefix}'], mode='lines', name='台灣',
@@ -356,7 +376,6 @@ elif page_selection == "全球視角下的台灣":
             cols_to_keep.append(db_col)
             fig_intl.add_trace(go.Scatter(x=df_intl['Year'], y=df_intl[db_col], mode='lines', name=c,
                                           line=dict(color=color_map[c], width=3)))
-
         dl_data = convert_df(df_intl[cols_to_keep])
 
     fig_intl.update_layout(title=f"全球視角：{selected_intl_indicator}", hovermode="x unified", height=450,
@@ -365,8 +384,6 @@ elif page_selection == "全球視角下的台灣":
 
     st.markdown('<div class="macro-card">', unsafe_allow_html=True)
     st.plotly_chart(fig_intl, use_container_width=True)
-
-    # 🚀 下載按鈕實作
     st.download_button(label=f"📥 下載 {selected_intl_indicator} CSV 資料", data=dl_data, file_name='macro_data.csv',
                        mime='text/csv')
 
@@ -375,7 +392,7 @@ elif page_selection == "全球視角下的台灣":
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ----------------------------------------------------
-    # 🏁 賽馬圖 (完全修復排序與幽靈標註)
+    # 🏁 賽馬圖
     # ----------------------------------------------------
     st.markdown("#### 🏁 亞洲四小龍與大國角力：歷年經濟實力賽馬圖")
 
@@ -396,7 +413,6 @@ elif page_selection == "全球視角下的台灣":
         color_discrete_map=color_map, hover_name="Country"
     )
 
-    # 🚀 徹底消除幽靈標註 texttemplate=None
     fig_race.update_traces(texttemplate=None, hovertemplate="%{hovertext}: %{x:,.0f}")
 
     watermark_annotation = dict(
@@ -428,7 +444,7 @@ elif page_selection == "全球視角下的台灣":
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# 模組四：大時代歷史縱橫 (事件聚焦與縮放邏輯)
+# 模組四：大時代歷史縱橫
 # ----------------------------------------------------
 elif page_selection == "大時代歷史縱橫":
     st.markdown("選擇特定歷史戰役，X 軸將**自動縮放聚焦**於事件前後 5 年，並僅顯示具強烈因果關聯的變數，協助深度推演。")
@@ -509,7 +525,6 @@ elif page_selection == "國際政經與資金流動":
     st.download_button(label="📥 下載 SWIFT 數據 CSV", data=convert_df(df_swift_filtered), file_name='swift_data.csv',
                        mime='text/csv')
 
-    # 🚀 深度論述 SWIFT 背景
     st.info(
         "💡 **地緣政治與底層支付洞察**：\n長期以來，全球貿易與原油定價高度依賴「石油美元 (Petrodollar)」體系。然而，隨著近年地緣政治板塊位移與全球供應鏈重組（如金磚國家擴員、俄烏戰爭後的金融制裁），「石油人民幣 (Petro-yuan)」及非美貨幣結算的雙邊貿易逐漸崛起。這種結構性的轉變，正悄悄且具體地反映在 SWIFT 的底層支付數據佔比變化中。")
     st.markdown('</div>', unsafe_allow_html=True)
