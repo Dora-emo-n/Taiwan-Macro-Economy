@@ -38,7 +38,6 @@ theme_css = """
 """
 st.markdown(theme_css, unsafe_allow_html=True)
 
-# 統一高對比實線色彩對映表 (Qualitative High-Contrast Colors)
 color_map = {
     '台灣': '#d62728', '美國': '#1f77b4', '日本': '#2ca02c', '韓國': '#ff7f0e',
     '中國': '#9467bd', '越南': '#1abc9c', '印度': '#e84393', '德國': '#34495e', '新加坡': '#f1c40f', '香港': '#8c564b'
@@ -46,7 +45,7 @@ color_map = {
 
 
 # ==========================================
-# 二、 數據快取與載入模組 (嚴格套用擬真歷史數據)
+# 二、 數據快取與載入模組 (徹底重構合理歷史數據)
 # ==========================================
 @st.cache_data
 def load_all_data():
@@ -71,74 +70,105 @@ def load_all_data():
         2024: {"title": "AI 伺服器狂潮", "desc": "高階伺服器需求大增，台股突破兩萬點大關。"}
     }
 
+    # 🚀 修正 3：徹底改善假資料的合理性 (平滑插值，加入歷史衰退點)
+    def generate_history_data(base_points):
+        """根據給定的歷史錨點，使用 PCHIP 插值生成平滑的年度數據"""
+        df_base = pd.DataFrame(base_points, columns=['Year', 'Val'])
+        df_full = pd.DataFrame({'Year': years})
+        df_merged = pd.merge(df_full, df_base, on='Year', how='left')
+        df_merged['Val'] = df_merged['Val'].interpolate(method='pchip')
+        # 加入微小隨機波動增加真實感
+        np.random.seed(42)
+        noise = np.random.normal(0, df_merged['Val'].std() * 0.05, len(years))
+        return df_merged['Val'] + noise
+
     df_intl = pd.DataFrame({'Year': years})
 
-    # ⚠️ 註解：此處為貼近真實歷史走向之 Mock Data。若投入正式商用，建議替換為 World Bank 或 IMF API 真實資料源。
+    # [實質 GDP 成長率] 包含 1997, 2001, 2008, 2020 衰退
+    df_intl['Taiwan_GDP'] = generate_history_data(
+        [(1970, 11), (1974, 1.2), (1980, 7.3), (1990, 5.5), (1997, 6.0), (2001, -1.2), (2008, 0.7), (2010, 10.6),
+         (2020, 3.4), (2021, 6.5), (2025, 3.1)])
+    df_intl['US_GDP'] = generate_history_data(
+        [(1970, 0.2), (1980, -0.3), (1990, 1.9), (2000, 4.1), (2001, 1.0), (2008, -0.1), (2009, -2.5), (2020, -3.4),
+         (2021, 5.7), (2025, 2.5)])
+    df_intl['China_GDP'] = generate_history_data(
+        [(1970, 19.3), (1980, 7.8), (1990, 3.9), (2000, 8.5), (2007, 14.2), (2008, 9.6), (2015, 7.0), (2020, 2.2),
+         (2022, 3.0), (2025, 4.5)])
+    df_intl['Japan_GDP'] = generate_history_data(
+        [(1970, 6.5), (1980, 4.2), (1990, 5.3), (1998, -1.3), (2001, 0.4), (2008, -3.4), (2020, -4.5), (2025, 1.2)])
+    df_intl['Korea_GDP'] = generate_history_data(
+        [(1970, 10.0), (1980, -1.6), (1990, 9.8), (1998, -5.1), (2001, 4.5), (2008, 3.0), (2020, -0.7), (2025, 2.2)])
+    df_intl['Vietnam_GDP'] = generate_history_data(
+        [(1970, 2.0), (1990, 5.1), (2000, 6.8), (2008, 5.7), (2010, 6.4), (2020, 2.9), (2025, 6.0)])
+    df_intl['India_GDP'] = generate_history_data(
+        [(1970, 5.1), (1980, 6.7), (1990, 5.5), (2000, 3.8), (2008, 3.1), (2010, 8.5), (2020, -5.8), (2025, 6.8)])
+    df_intl['Germany_GDP'] = generate_history_data(
+        [(1970, 3.2), (1980, 1.3), (1990, 5.3), (2000, 2.9), (2009, -5.7), (2020, -3.7), (2025, 0.2)])
 
-    # [實質 GDP 成長率] 擬真數據
-    df_intl['Taiwan_GDP'] = np.interp(years, [1970, 1974, 1980, 1990, 1997, 2001, 2008, 2010, 2020, 2021, 2025],
-                                      [11.5, 1.2, 7.3, 5.5, 6.0, -1.2, 0.7, 10.6, 3.4, 6.5, 3.1])
-    df_intl['US_GDP'] = np.interp(years, [1970, 1980, 1990, 2000, 2008, 2009, 2020, 2021, 2025],
-                                  [0.2, -0.3, 1.9, 4.1, -0.1, -2.5, -3.4, 5.7, 2.5])
-    df_intl['China_GDP'] = np.interp(years, [1970, 1980, 1990, 2000, 2007, 2015, 2020, 2022, 2025],
-                                     [19.3, 7.8, 3.9, 8.5, 14.2, 7.0, 2.2, 3.0, 4.5])
-    df_intl['Japan_GDP'] = np.interp(years, [1970, 1980, 1990, 1998, 2008, 2020, 2025],
-                                     [6.5, 4.2, 5.3, -1.3, -3.4, -4.5, 1.2])
-    df_intl['Korea_GDP'] = np.interp(years, [1970, 1980, 1990, 1998, 2008, 2020, 2025],
-                                     [10.0, -1.6, 9.8, -5.1, 3.0, -0.7, 2.2])
-    df_intl['Vietnam_GDP'] = np.interp(years, [1970, 1990, 2000, 2010, 2020, 2025], [2.0, 5.1, 6.8, 6.4, 2.9, 6.0])
-    df_intl['India_GDP'] = np.interp(years, [1970, 1980, 1990, 2000, 2010, 2020, 2025],
-                                     [5.1, 6.7, 5.5, 3.8, 8.5, -5.8, 6.8])
-    df_intl['Germany_GDP'] = np.interp(years, [1970, 1980, 1990, 2000, 2009, 2020, 2025],
-                                       [3.2, 1.3, 5.3, 2.9, -5.7, -3.7, 0.2])
+    # [通貨膨脹率 CPI YoY]
+    df_intl['Taiwan_CPI'] = generate_history_data(
+        [(1970, 2.7), (1974, 47.5), (1980, 19.0), (1990, 4.1), (2001, -0.1), (2008, 3.5), (2020, -0.2), (2022, 2.9),
+         (2025, 2.1)])
+    df_intl['US_CPI'] = generate_history_data(
+        [(1970, 5.8), (1974, 11.0), (1980, 13.5), (1990, 5.4), (2000, 3.4), (2008, 3.8), (2020, 1.2), (2022, 8.0),
+         (2025, 3.1)])
+    df_intl['China_CPI'] = generate_history_data(
+        [(1970, 0.0), (1980, 6.0), (1989, 18.0), (1994, 24.1), (2000, 0.4), (2008, 5.9), (2020, 2.5), (2022, 2.0),
+         (2025, 0.2)])
+    df_intl['Japan_CPI'] = generate_history_data(
+        [(1970, 7.7), (1974, 23.2), (1980, 7.8), (1995, -0.1), (2000, -0.7), (2010, -0.7), (2020, 0.0), (2023, 3.3),
+         (2025, 2.0)])
+    df_intl['Korea_CPI'] = generate_history_data(
+        [(1970, 15.9), (1980, 28.7), (1990, 8.6), (1998, 7.5), (2010, 2.9), (2020, 0.5), (2022, 5.1), (2025, 3.0)])
+    df_intl['Vietnam_CPI'] = generate_history_data(
+        [(1970, 5.0), (1988, 50.0), (1995, 16.9), (2008, 23.1), (2020, 3.2), (2025, 3.5)])
+    df_intl['India_CPI'] = generate_history_data(
+        [(1970, 5.1), (1974, 28.6), (1990, 8.9), (2010, 11.9), (2020, 6.6), (2025, 4.5)])
+    df_intl['Germany_CPI'] = generate_history_data(
+        [(1970, 3.4), (1973, 7.1), (1981, 6.3), (1995, 1.7), (2009, 0.3), (2022, 6.9), (2025, 2.4)])
 
-    # [通貨膨脹率 CPI YoY] 擬真數據
-    df_intl['Taiwan_CPI'] = np.interp(years, [1970, 1974, 1980, 1990, 2001, 2008, 2020, 2022, 2025],
-                                      [2.7, 47.5, 19.0, 4.1, -0.1, 3.5, -0.2, 2.9, 2.1])
-    df_intl['US_CPI'] = np.interp(years, [1970, 1974, 1980, 1990, 2000, 2008, 2020, 2022, 2025],
-                                  [5.8, 11.0, 13.5, 5.4, 3.4, 3.8, 1.2, 8.0, 3.1])
-    df_intl['China_CPI'] = np.interp(years, [1970, 1980, 1989, 1994, 2000, 2008, 2020, 2022, 2025],
-                                     [0.0, 6.0, 18.0, 24.1, 0.4, 5.9, 2.5, 2.0, 0.2])
-    df_intl['Japan_CPI'] = np.interp(years, [1970, 1974, 1980, 1995, 2000, 2010, 2020, 2023, 2025],
-                                     [7.7, 23.2, 7.8, -0.1, -0.7, -0.7, 0.0, 3.3, 2.0])
-    df_intl['Korea_CPI'] = np.interp(years, [1970, 1980, 1990, 1998, 2010, 2020, 2022, 2025],
-                                     [15.9, 28.7, 8.6, 7.5, 2.9, 0.5, 5.1, 3.0])
-    df_intl['Vietnam_CPI'] = np.interp(years, [1970, 1988, 1995, 2008, 2020, 2025], [5.0, 300.0, 16.9, 23.1, 3.2, 3.5])
-    df_intl['India_CPI'] = np.interp(years, [1970, 1974, 1990, 2010, 2020, 2025], [5.1, 28.6, 8.9, 11.9, 6.6, 4.5])
-    df_intl['Germany_CPI'] = np.interp(years, [1970, 1973, 1981, 1995, 2009, 2022, 2025],
-                                       [3.4, 7.1, 6.3, 1.7, 0.3, 6.9, 2.4])
+    # [高科技產品出口佔比]
+    df_intl['Taiwan_Tech'] = generate_history_data(
+        [(1970, 5), (1980, 15), (1990, 25), (2000, 45), (2010, 50), (2020, 65), (2025, 70)])
+    df_intl['US_Tech'] = generate_history_data(
+        [(1970, 15), (1980, 25), (1990, 30), (2000, 33), (2010, 27), (2020, 20), (2025, 19)])
+    df_intl['China_Tech'] = generate_history_data(
+        [(1970, 0), (1980, 0), (1990, 5), (2000, 18), (2010, 28), (2020, 31), (2025, 32)])
+    df_intl['Japan_Tech'] = generate_history_data(
+        [(1970, 10), (1980, 20), (1990, 28), (2000, 26), (2010, 18), (2020, 16), (2025, 15)])
+    df_intl['Korea_Tech'] = generate_history_data(
+        [(1970, 2), (1980, 10), (1990, 18), (2000, 32), (2010, 29), (2020, 36), (2025, 38)])
+    df_intl['Vietnam_Tech'] = generate_history_data(
+        [(1970, 0), (1990, 0), (2000, 5), (2010, 10), (2020, 35), (2025, 42)])
+    df_intl['India_Tech'] = generate_history_data([(1970, 0), (1990, 2), (2000, 5), (2010, 7), (2020, 10), (2025, 12)])
+    df_intl['Germany_Tech'] = generate_history_data(
+        [(1970, 10), (1990, 15), (2000, 18), (2010, 16), (2020, 15), (2025, 16)])
 
-    # [高科技產品出口佔比] 擬真數據
-    df_intl['Taiwan_Tech'] = np.interp(years, [1970, 1980, 1990, 2000, 2010, 2020, 2025], [5, 15, 25, 45, 50, 65, 70])
-    df_intl['US_Tech'] = np.interp(years, [1970, 1980, 1990, 2000, 2010, 2020, 2025], [15, 25, 30, 33, 27, 20, 19])
-    df_intl['China_Tech'] = np.interp(years, [1970, 1980, 1990, 2000, 2010, 2020, 2025], [0, 0, 5, 18, 28, 31, 32])
-    df_intl['Japan_Tech'] = np.interp(years, [1970, 1980, 1990, 2000, 2010, 2020, 2025], [10, 20, 28, 26, 18, 16, 15])
-    df_intl['Korea_Tech'] = np.interp(years, [1970, 1980, 1990, 2000, 2010, 2020, 2025], [2, 10, 18, 32, 29, 36, 38])
-    df_intl['Vietnam_Tech'] = np.interp(years, [1970, 1990, 2000, 2010, 2020, 2025],
-                                        [0, 0, 5, 10, 35, 42])  # 越南近年組裝代工飆升
-    df_intl['India_Tech'] = np.interp(years, [1970, 1990, 2000, 2010, 2020, 2025], [0, 2, 5, 7, 10, 12])
-    df_intl['Germany_Tech'] = np.interp(years, [1970, 1990, 2000, 2010, 2020, 2025], [10, 15, 18, 16, 15, 16])
-
-    # 3. 賽馬圖數據 (人均 GDP)
+    # 🚀 修正 1：統一賽馬圖欄位名稱為 Value，避免 KeyError
     race_records = []
     for y in years:
-        tw_val = np.interp(y, [1970, 1992, 2011, 2025], [390, 10000, 20000, 35000])
-        kr_val = np.interp(y, [1970, 1995, 2015, 2025], [270, 12000, 28000, 34000])
-        sg_val = np.interp(y, [1970, 1990, 2010, 2025], [900, 13000, 46000, 85000])
-        hk_val = np.interp(y, [1970, 1993, 2010, 2025], [950, 15000, 32000, 52000])
-        us_val = np.interp(y, [1970, 1990, 2010, 2025], [5200, 23000, 48000, 80000])
-        cn_val = np.interp(y, [1970, 1990, 2010, 2025], [110, 310, 4500, 13000])
-        jp_val = np.interp(y, [1970, 1995, 2012, 2025], [2000, 43000, 48000, 33000])
-        vn_val = np.interp(y, [1970, 1990, 2010, 2025], [100, 130, 1300, 4500])
-        for country, val in [("台灣", tw_val), ("韓國", kr_val), ("新加坡", sg_val), ("香港", hk_val), ("美國", us_val),
-                             ("中國", cn_val), ("日本", jp_val), ("越南", vn_val)]:
-            race_records.append({'Year': y, 'Country': country, 'Value': val})
+        tw_pc = np.interp(y, [1970, 1992, 2011, 2025], [390, 10000, 20000, 35000])
+        tw_tot = np.interp(y, [1970, 1992, 2011, 2025], [5, 200, 500, 800])
+        kr_pc = np.interp(y, [1970, 1995, 2015, 2025], [270, 12000, 28000, 34000])
+        kr_tot = np.interp(y, [1970, 1995, 2015, 2025], [8, 500, 1400, 1700])
+        sg_pc = np.interp(y, [1970, 1990, 2010, 2025], [900, 13000, 46000, 85000])
+        sg_tot = np.interp(y, [1970, 1990, 2010, 2025], [2, 35, 230, 500])
+        us_pc = np.interp(y, [1970, 1990, 2010, 2025], [5200, 23000, 48000, 80000])
+        us_tot = np.interp(y, [1970, 1990, 2010, 2025], [1000, 5900, 15000, 28000])
+        cn_pc = np.interp(y, [1970, 1990, 2010, 2025], [110, 310, 4500, 13000])
+        cn_tot = np.interp(y, [1970, 1990, 2010, 2025], [90, 360, 6000, 17000])
+        jp_pc = np.interp(y, [1970, 1995, 2012, 2025], [2000, 43000, 48000, 33000])
+        jp_tot = np.interp(y, [1970, 1995, 2012, 2025], [200, 5400, 6200, 4200])
+        vn_pc = np.interp(y, [1970, 1990, 2010, 2025], [100, 130, 1300, 4500])
+        vn_tot = np.interp(y, [1970, 1990, 2010, 2025], [3, 6, 110, 430])
+        for country, pc, tot in [("台灣", tw_pc, tw_tot), ("韓國", kr_pc, kr_tot), ("新加坡", sg_pc, sg_tot),
+                                 ("美國", us_pc, us_tot), ("中國", cn_pc, cn_tot), ("日本", jp_pc, jp_tot),
+                                 ("越南", vn_pc, vn_tot)]:
+            race_records.append({'Year': y, 'Country': country, 'GDP_Per_Capita': pc, 'Total_GDP': tot})
+
     df_race = pd.DataFrame(race_records)
 
-    # 🚨 關鍵除錯：賦予每一年份的數值「動態排名 (Rank)」，確保 Y 軸能上下交錯超車
-    df_race['Rank'] = df_race.groupby('Year')['Value'].rank(method='first', ascending=True)
-
-    # 4. 其他基礎模組數據
+    # 4. SWIFT 與量化回測
     swift_usd = np.interp(years, [2010, 2015, 2020, 2025], [85, 78, 65, 58])
     swift_cny = np.interp(years, [2010, 2015, 2020, 2025], [0.1, 1.5, 3.2, 7.5])
     df_swift = pd.DataFrame({'Year': years, 'SWIFT_USD': swift_usd, 'SWIFT_CNY': swift_cny})
@@ -146,8 +176,14 @@ def load_all_data():
     sim_dates = pd.date_range(start='2015-01-01', end='2025-12-31', freq='B')
     daily_ret_port = np.random.normal(0.00045, 0.011, len(sim_dates))
     daily_ret_bench = np.random.normal(0.00035, 0.013, len(sim_dates))
-    daily_ret_port[(sim_dates > '2020-02-15') & (sim_dates < '2020-03-25')] -= 0.005
-    daily_ret_bench[(sim_dates > '2020-02-15') & (sim_dates < '2020-03-25')] -= 0.006
+
+    crash_2020 = (sim_dates > '2020-02-15') & (sim_dates < '2020-03-25')
+    crash_2022 = (sim_dates > '2022-01-01') & (sim_dates < '2022-10-31')
+    daily_ret_port[crash_2020] -= 0.005
+    daily_ret_bench[crash_2020] -= 0.006
+    daily_ret_port[crash_2022] -= 0.001
+    daily_ret_bench[crash_2022] -= 0.0015
+
     df_backtest = pd.DataFrame({'Date': sim_dates, 'Portfolio_NAV': np.cumprod(1 + daily_ret_port) * 100,
                                 'Benchmark_NAV': np.cumprod(1 + daily_ret_bench) * 100})
 
@@ -157,7 +193,7 @@ def load_all_data():
 events_dict, df_intl, df_race, df_swift, df_backtest = load_all_data()
 
 # ==========================================
-# 三、 側邊欄導覽 (精確排序與命名)
+# 三、 側邊欄導覽
 # ==========================================
 st.sidebar.markdown("---")
 page_options = [
@@ -183,7 +219,6 @@ if page_selection == "台灣1970~2025經濟歷史大事紀":
     st.markdown("##### 📖 一部純粹的歷史百科全書")
     st.write("請將游標移至圖表中的黃色節點，即可顯示詳細的歷史背景與經濟影響。")
 
-    # 視覺化時間軸 (解決文字重疊)
     years = np.arange(1970, 2026)
     event_years = list(events_dict.keys())
     event_texts = [events_dict[y]['title'] for y in event_years]
@@ -197,21 +232,22 @@ if page_selection == "台灣1970~2025經濟歷史大事紀":
     fig_timeline.add_trace(go.Scatter(
         x=event_years, y=[0] * len(event_years), mode='markers+text',
         marker=dict(size=20, color='#ffc107', line=dict(width=3, color='#e67e22')),
-        text=event_texts, textposition=text_positions, textfont=dict(size=13, color='#2c3e50'),
+        text=event_texts, textposition=text_positions,
+        textfont=dict(size=13, color='#2c3e50', family='Microsoft JhengHei'),
         hovertemplate="%{hovertext}<extra></extra>", hovertext=event_hovers
     ))
     fig_timeline.update_layout(
         height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=True, dtick=5, tickfont=dict(size=14)),
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-1.5, 1.5]),
-        margin=dict(l=20, r=20, t=40, b=20), hoverlabel=dict(bgcolor="white", font_size=15)
+        margin=dict(l=20, r=20, t=40, b=20),
+        hoverlabel=dict(bgcolor="white", font_size=15, font_family="Microsoft JhengHei")
     )
 
     st.markdown('<div class="macro-card">', unsafe_allow_html=True)
     st.plotly_chart(fig_timeline, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 下拉選單與歷史百科全書卡片
     st.markdown("#### 📜 歷史百科全書查閱")
     selected_event_year = st.selectbox("快速跳轉至特定事件：", event_years,
                                        format_func=lambda x: f"{x} 年 - {events_dict[x]['title']}")
@@ -223,7 +259,7 @@ if page_selection == "台灣1970~2025經濟歷史大事紀":
             st.write(info['desc'])
 
 # ----------------------------------------------------
-# 模組二：單項指標數據圖表探索 (還原 HTML 外殼)
+# 模組二：單項指標數據圖表探索
 # ----------------------------------------------------
 elif page_selection == "單項指標數據圖表探索":
     st.markdown("本區為**高互動性原創 HTML 圖表展示區**。請由下方選單切換觀測指標：")
@@ -243,21 +279,18 @@ elif page_selection == "單項指標數據圖表探索":
     }
 
     selected_indicator = st.selectbox("📊 選擇觀測圖表：", list(html_file_map.keys()))
-
     st.markdown('<div class="macro-card">', unsafe_allow_html=True)
     target_filename = html_file_map[selected_indicator]
-
     try:
         with open(target_filename, 'r', encoding='utf-8') as f:
             html_content = f.read()
         components.html(html_content, height=750, scrolling=True)
     except FileNotFoundError:
         st.error(f"❌ 找不到檔案：`{target_filename}`。請確認該檔案是否已經成功上傳至 GitHub，並且檔名完全一致。")
-
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# 模組三：全球視角下的台灣 (獨立頁面 + 巨型浮水印)
+# 模組三：全球視角下的台灣
 # ----------------------------------------------------
 elif page_selection == "全球視角下的台灣":
     st.markdown("#### 🌍 跨國總經數據對照 (IMF Datamapper 模式)")
@@ -269,7 +302,7 @@ elif page_selection == "全球視角下的台灣":
             "實質 GDP 成長率", "歷年人均 GDP", "通貨膨脹率 (CPI YoY)", "高科技產品出口佔比"
         ])
     with col2:
-        # 預設僅勾選美國與中國，並加入新國家
+        # 🚀 修正 4：強制實作預設選取，避免義大利麵圖
         compare_countries = st.multiselect(
             '🌍 選擇疊加比較國家：',
             ['美國', '日本', '韓國', '中國', '越南', '印度', '德國'],
@@ -278,10 +311,9 @@ elif page_selection == "全球視角下的台灣":
 
     fig_intl = go.Figure()
 
-    # 依照指標配置圖表 Y 軸對應的 DataFrame 欄位名稱前綴
     metric_mapping = {
         "實質 GDP 成長率": ("_GDP", "成長率 (%)"),
-        "歷年人均 GDP": ("_PC", "人均 GDP (USD)"),  # 會走獨立邏輯讀取 df_race
+        "歷年人均 GDP": ("GDP_Per_Capita", "人均 GDP (USD)"),  # 修正 KeyError，對應 df_race
         "通貨膨脹率 (CPI YoY)": ("_CPI", "年增率 (%)"),
         "高科技產品出口佔比": ("_Tech", "佔製造業出口 (%)")
     }
@@ -298,7 +330,6 @@ elif page_selection == "全球視角下的台灣":
                 fig_intl.add_trace(go.Scatter(x=c_pc['Year'], y=c_pc['GDP_Per_Capita'], mode='lines', name=c,
                                               line=dict(color=color_map[c], width=3)))
     else:
-        # 繪製 GDP, CPI, Tech
         fig_intl.add_trace(go.Scatter(x=df_intl['Year'], y=df_intl[f'Taiwan{prefix}'], mode='lines', name='台灣',
                                       line=dict(color=color_map['台灣'], width=4)))
         col_name_mapping = {'美國': 'US', '日本': 'Japan', '韓國': 'Korea', '中國': 'China', '越南': 'Vietnam',
@@ -319,51 +350,63 @@ elif page_selection == "全球視角下的台灣":
     # ----------------------------------------------------
     # 🏁 賽馬圖 (完全修復排序與巨型浮水印)
     # ----------------------------------------------------
-    st.markdown("#### 🏁 亞洲四小龍與製造強國：歷年人均 GDP 賽馬圖")
-    st.write("點擊播放鍵，觀看自 1970 年至 2025 年各國經濟實力的動態超車演變。")
+    st.markdown("#### 🏁 亞洲四小龍與製造強國：歷年大國角力賽馬圖")
 
-    # 確保資料依照年份與數值排序
-    df_race_sorted = df_race.sort_values(by=['Year', 'Value'], ascending=[True, True])
+    # 🚀 修正 2：新增下拉選單切換總 GDP 與人均 GDP
+    race_metric = st.radio("選擇競賽數據：", ["歷年人均 GDP (USD)", "歷年總 GDP 經濟體量 (十億 USD)"], horizontal=True)
+    target_col = "GDP_Per_Capita" if "人均" in race_metric else "Total_GDP"
+    max_range = 95000 if "人均" in race_metric else 28000
+
+    # 動態計算 Rank
+    df_race['Dynamic_Rank'] = df_race.groupby('Year')[target_col].rank(method='first', ascending=True)
+    df_race_sorted = df_race.sort_values(by=['Year', target_col], ascending=[True, True])
 
     # 取出第一年的年份做為起始浮水印
     years_list = sorted(df_race_sorted['Year'].unique())
     start_year = str(int(years_list[0]))
 
-    # 建立動畫 Bar Chart，Y 軸使用 Rank 騙過 Plotly 以達到動態上下換位的效果
     fig_race = px.bar(
-        df_race_sorted, x="Value", y="Rank", color="Country", text="Country",
+        df_race_sorted, x=target_col, y="Dynamic_Rank", color="Country", text="Country",
         animation_frame="Year", animation_group="Country", orientation='h',
-        range_x=[0, 95000], range_y=[0.5, 8.5],
+        range_x=[0, max_range], range_y=[0.5, 8.5],
         color_discrete_map=color_map
     )
 
-    # 將國家名稱顯示在長條外部，並隱藏 Y 軸原本的數字 (Rank)
-    fig_race.update_traces(textfont_size=16, textposition="outside", cliponaxis=False)
-    fig_race.update_yaxes(showticklabels=False, title="")
-    fig_race.update_xaxes(title="人均 GDP (USD)")
+    # 🚀 修正：固定標籤在左側 (Y軸標籤)，隱藏內部字體
+    fig_race.update_traces(textfont_size=1, textposition="none", cliponaxis=False)  # 隱藏 Bar 上面的文字
 
     # 建立靜態版面浮水印
     watermark_annotation = dict(
         text=start_year, x=0.9, y=0.1, xref="paper", yref="paper",
         showarrow=False, font=dict(size=120, color="rgba(200,200,200,0.3)")
     )
-    fig_race.update_layout(height=600, plot_bgcolor='rgba(0,0,0,0)', showlegend=False,
-                           annotations=[watermark_annotation], margin=dict(r=100))
+    fig_race.update_layout(
+        height=600, plot_bgcolor='rgba(0,0,0,0)', showlegend=False,
+        annotations=[watermark_annotation], margin=dict(l=100, r=20)
+    )
 
-    # 🚀 為每一個動畫 Frame 動態更新對應年份的浮水印
+    # 動態更新 Y 軸的國家名稱與浮水印
+    fig_race.update_yaxes(tickmode='array', tickvals=list(range(1, 9)),
+                          ticktext=df_race_sorted[df_race_sorted['Year'] == 1970]['Country'].tolist(), title="")
+    fig_race.update_xaxes(title=race_metric)
+
     for frame in fig_race.frames:
-        current_year = str(frame.name)
+        current_year = int(frame.name)
+        # 更新浮水印
         frame.layout.annotations = [
-            dict(text=current_year, x=0.9, y=0.1, xref="paper", yref="paper",
+            dict(text=str(current_year), x=0.9, y=0.1, xref="paper", yref="paper",
                  showarrow=False, font=dict(size=120, color="rgba(200,200,200,0.3)"))
         ]
+        # 更新左側 Y 軸國家排名順序
+        current_order = df_race_sorted[df_race_sorted['Year'] == current_year]['Country'].tolist()
+        frame.layout.yaxis.ticktext = current_order
 
     st.markdown('<div class="macro-card">', unsafe_allow_html=True)
     st.plotly_chart(fig_race, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# 模組四：大時代歷史縱橫 (事件聚焦與縮放邏輯)
+# 模組四：大時代歷史縱橫
 # ----------------------------------------------------
 elif page_selection == "大時代歷史縱橫":
     st.markdown("選擇特定歷史戰役，X 軸將**自動縮放聚焦**於事件前後 5 年，並僅顯示具強烈因果關聯的變數，協助深度推演。")
@@ -462,7 +505,7 @@ elif page_selection == "量化策略回測實驗室":
         go.Scatter(x=df_backtest['Date'], y=df_backtest['Benchmark_NAV'], name='台灣加權報酬指數 (基準)',
                    line=dict(color=color_map['美國'], width=2, dash='dot')))
     fig_quant.update_layout(title="累計報酬率與高頻波動軌跡 (2015-2025)", hovermode="x unified",
-                            plot_bgcolor='rgba(0,0,0,0)')
+                            plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=60, r=30, t=50, b=40))
 
     st.markdown('<div class="macro-card">', unsafe_allow_html=True)
     st.plotly_chart(fig_quant, use_container_width=True)
